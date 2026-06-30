@@ -1,0 +1,213 @@
+﻿using System.Reflection;
+using System.Text.Json;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services;
+
+public class UsuarioService : FirestoreBaseService
+{
+    private const string ColeccionUsuarios = "usuarios";
+
+    public async Task<bool> GuardarUsuarioConRolAsync(string uid, string correo, string nombre, string rol)
+    {
+        if (string.IsNullOrWhiteSpace(uid)) return false;
+
+        var payload = new
+        {
+            uid,
+            correo,
+            nombre,
+            rol = string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant()
+        };
+
+        return await CrearDocumentoInternoAsync($"{ColeccionUsuarios}/{uid}", payload);
+    }
+
+    public async Task<bool> GuardarUsuarioAsync(Usuario usuario)
+    {
+        if (usuario is null || string.IsNullOrWhiteSpace(usuario.Uid)) return false;
+
+        var payload = new
+        {
+            uid = usuario.Uid,
+            correo = usuario.Correo,
+            nombre = usuario.Nombre,
+            rol = string.IsNullOrWhiteSpace(usuario.Rol) ? "cliente" : usuario.Rol.ToLowerInvariant()
+        };
+
+        return await CrearDocumentoInternoAsync($"{ColeccionUsuarios}/{usuario.Uid}", payload);
+    }
+
+    public Task<bool> CrearUsuarioAsync(Usuario usuario) => GuardarUsuarioAsync(usuario);
+
+    public async Task<Usuario?> ObtenerPorUidAsync(string uid)
+    {
+        if (string.IsNullOrWhiteSpace(uid)) return null;
+
+        var raw = await ObtenerDocumentoInternoAsync($"{ColeccionUsuarios}/{uid}");
+        return MapearUsuario(raw);
+    }
+
+    public Task<Usuario?> ObtenerUsuarioPorUidAsync(string uid) => ObtenerPorUidAsync(uid);
+    public Task<Usuario?> GetByUidAsync(string uid) => ObtenerPorUidAsync(uid);
+    public Task<Usuario?> GetUsuarioByUidAsync(string uid) => ObtenerPorUidAsync(uid);
+
+    public async Task<string> ObtenerRolPorUidAsync(string uid)
+    {
+        var usuario = await ObtenerPorUidAsync(uid);
+        return string.IsNullOrWhiteSpace(usuario?.Rol) ? "cliente" : usuario!.Rol.ToLowerInvariant();
+    }
+
+    public async Task<object?> ObtenerUsuarioPorUidGenericoAsync(string uid)
+    {
+        return await ObtenerPorUidAsync(uid);
+    }
+
+    public async Task<Usuario?> ObtenerPorEmailAsync(string email)
+    {
+        // Mantiene compatibilidad de firma; la resolución principal de rol se hace por UID.
+        // Si necesitas búsqueda por correo, se implementa con query Firestore centralizada.
+        await Task.CompletedTask;
+        return null;
+    }
+
+    public Task<Usuario?> GetByEmailAsync(string email) => ObtenerPorEmailAsync(email);
+    public Task<Usuario?> GetUsuarioPorEmailAsync(string email) => ObtenerPorEmailAsync(email);
+
+    private async Task<bool> CrearDocumentoInternoAsync(string ruta, object payload)
+    {
+        var metodo = typeof(FirestoreBaseService).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .FirstOrDefault(m => m.Name == "CrearDocumentoAsync");
+
+        if (metodo is null) return false;
+
+        var args = ConstruirArgumentos(metodo, ruta, payload);
+        var resultado = metodo.Invoke(this, args);
+        return await ResolverBoolAsync(resultado);
+    }
+
+    private async Task<object?> ObtenerDocumentoInternoAsync(string ruta)
+    {
+        var metodo = typeof(FirestoreBaseService).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .FirstOrDefault(m => m.Name == "ObtenerDocumentoAsync");
+
+        if (metodo is null) return null;
+
+        var args = ConstruirArgumentos(metodo, ruta, null);
+        var resultado = metodo.Invoke(this, args);
+        return await ResolverObjetoAsync(resultado);
+    }
+
+    private static object?[] ConstruirArgumentos(MethodInfo metodo, string ruta, object? payload)
+    {
+        var parametros = metodo.GetParameters();
+        var args = new object?[parametros.Length];
+
+        for (int i = 0; i < parametros.Length; i++)
+        {
+            var p = parametros[i];
+            var nombre = p.Name?.ToLowerInvariant() ?? string.Empty;
+
+            if (nombre.Contains("ruta") || nombre.Contains("path") || nombre.Contains("document"))
+            {
+                args[i] = ruta;
+            }
+            else if (payload is not null && (nombre.Contains("data") || nombre.Contains("body") || nombre.Contains("payload") || nombre.Contains("obj")))
+            {
+                args[i] = payload;
+            }
+            else
+            {
+                args[i] = p.HasDefaultValue ? p.DefaultValue : (p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null);
+            }
+        }
+
+        return args;
+    }
+
+    private static async Task<bool> ResolverBoolAsync(object? invocacion)
+    {
+        if (invocacion is null) return false;
+
+        if (invocacion is Task<bool> taskBool)
+            return await taskBool;
+
+        if (invocacion is Task task)
+        {
+            await task;
+            var resultProp = task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);
+            if (resultProp?.GetValue(task) is bool b) return b;
+            return true;
+        }
+
+        return invocacion is bool direct && direct;
+    }
+
+    private static async Task<object?> ResolverObjetoAsync(object? invocacion)
+    {
+        if (invocacion is null) return null;
+
+        if (invocacion is Task task)
+        {
+            await task;
+            return task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)?.GetValue(task);
+        }
+
+        return invocacion;
+    }
+
+    private static Usuario? MapearUsuario(object? raw)
+    {
+        if (raw is null) return null;
+        if (raw is Usuario u) return u;
+
+        try
+        {
+            if (raw is JsonElement je)
+            {
+                return new Usuario
+                {
+                    Uid = LeerJson(je, "uid"),
+                    Correo = LeerJson(je, "correo", "email"),
+                    Nombre = LeerJson(je, "nombre", "name"),
+                    Rol = LeerJson(je, "rol")
+                };
+            }
+
+            if (raw is string json && !string.IsNullOrWhiteSpace(json))
+            {
+                var doc = JsonDocument.Parse(json);
+                return new Usuario
+                {
+                    Uid = LeerJson(doc.RootElement, "uid"),
+                    Correo = LeerJson(doc.RootElement, "correo", "email"),
+                    Nombre = LeerJson(doc.RootElement, "nombre", "name"),
+                    Rol = LeerJson(doc.RootElement, "rol")
+                };
+            }
+
+            var type = raw.GetType();
+            return new Usuario
+            {
+                Uid = type.GetProperty("Uid")?.GetValue(raw)?.ToString() ?? type.GetProperty("uid")?.GetValue(raw)?.ToString() ?? string.Empty,
+                Correo = type.GetProperty("Correo")?.GetValue(raw)?.ToString() ?? type.GetProperty("Email")?.GetValue(raw)?.ToString() ?? string.Empty,
+                Nombre = type.GetProperty("Nombre")?.GetValue(raw)?.ToString() ?? type.GetProperty("Name")?.GetValue(raw)?.ToString() ?? string.Empty,
+                Rol = type.GetProperty("Rol")?.GetValue(raw)?.ToString() ?? "cliente"
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string LeerJson(JsonElement element, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (element.TryGetProperty(key, out var value))
+                return value.GetString() ?? string.Empty;
+        }
+        return string.Empty;
+    }
+}

@@ -1,0 +1,58 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class RegisterPage : ContentPage
+{
+    private const string AuthTokenKey = "auth_token";
+    private readonly AutenticacionViewModel _authViewModel;
+
+    public RegisterPage()
+    {
+        InitializeComponent();
+        _authViewModel = IPlatformApplication.Current?.Services.GetService<AutenticacionViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AutenticacionViewModel desde DI.");
+    }
+
+    private async void OnCrearCuentaClicked(object? sender, EventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(NombreEntry.Text))
+        {
+            await DisplayAlertAsync("Validación", "El nombre completo es obligatorio.", "OK");
+            return;
+        }
+
+        if (PasswordEntry.Text != ConfirmPasswordEntry.Text)
+        {
+            await DisplayAlertAsync("Validación", "Las contraseñas no coinciden.", "OK");
+            return;
+        }
+
+        if (!TerminosCheckBox.IsChecked)
+        {
+            await DisplayAlertAsync("Validación", "Debes aceptar los términos y condiciones.", "OK");
+            return;
+        }
+
+        var ok = await _authViewModel.RegisterAsync(EmailEntry.Text, PasswordEntry.Text);
+        if (ok)
+        {
+            Preferences.Set(AuthTokenKey, _authViewModel.IdToken);
+            await DisplayAlertAsync("Éxito", "Cuenta creada correctamente.", "OK");
+            Application.Current!.MainPage = new NavigationPage(new HomePage());
+            return;
+        }
+
+        await DisplayAlertAsync("Error", _authViewModel.MensajeError, "OK");
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnIrLoginClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+}

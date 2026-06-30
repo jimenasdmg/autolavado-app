@@ -1,0 +1,64 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    function isEmpleado() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'empleado';
+    }
+
+    function isCliente() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'cliente';
+    }
+
+    match /usuarios/{uid} {
+      allow read, write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /servicios/{servicioId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /vehiculos/{vehiculoId} {
+      allow read, write: if isSignedIn() &&
+        (resource.data.usuarioId == request.auth.uid ||
+         request.resource.data.usuarioId == request.auth.uid ||
+         isAdmin());
+    }
+
+    match /citas/{citaId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin() ||
+        (isCliente() && (resource.data.clienteId == request.auth.uid || resource.data.usuarioId == request.auth.uid)) ||
+        (isEmpleado() && (resource.data.empleadoId == request.auth.uid || resource.data.estado == 'pendiente'));
+      allow update: if isAdmin() ||
+        (isCliente() && (resource.data.clienteId == request.auth.uid || resource.data.usuarioId == request.auth.uid)) ||
+        (isEmpleado() && resource.data.empleadoId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /notificaciones/{notificacionId} {
+      allow create: if isSignedIn();
+      allow read, update: if isAdmin() ||
+        (isSignedIn() && resource.data.usuarioId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /mensajesInternos/{mensajeId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

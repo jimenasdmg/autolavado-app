@@ -1,0 +1,10 @@
+﻿using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Repositories.Interfaces;
+
+public interface ICitaRepository
+{
+    Task<List<Cita>> ObtenerPorUsuarioAsync(string usuarioId, string? idToken = null);
+    Task<List<Cita>> ObtenerTodasAsync(string idToken);
+    Task<Cita?> ObtenerPorIdAsync(string citaId, string? idToken = null);
+}

@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Empleado.EmpleadoMensajesPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="10">
+        <Label Text="Mensajes"
+               FontSize="24"
+               FontAttributes="Bold"
+               TextColor="#0B1F4D" />
+
+        <Border Grid.Row="1"
+                BackgroundColor="White"
+                Stroke="#E7ECF4"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 16"
+                Padding="10">
+            <Grid RowDefinitions="*,Auto,Auto" RowSpacing="8">
+                <ScrollView Grid.Row="0">
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Mensajes}" Spacing="6">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="{Binding Fondo}"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 14"
+                                        Padding="10"
+                                        HorizontalOptions="{Binding Alineacion}">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="{Binding Mensaje}" TextColor="{Binding ColorTexto}" FontSize="13" />
+                                        <Label Text="{Binding Fecha, StringFormat='{0:dd/MM HH:mm}'}"
+                                               TextColor="{Binding ColorTexto}"
+                                               Opacity="0.8"
+                                               FontSize="10" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </ScrollView>
+
+                <Entry Grid.Row="1"
+                       Placeholder="Escribe tu mensaje"
+                       Text="{Binding MensajeNuevo}"
+                       MaxLength="500" />
+
+                <Button Grid.Row="2"
+                        Text="Enviar"
+                        HeightRequest="42"
+                        CornerRadius="10"
+                        BackgroundColor="#2563EB"
+                        TextColor="White"
+                        Command="{Binding EnviarMensajeCommand}" />
+            </Grid>
+        </Border>
+
+        <Label Grid.Row="2"
+               Text="{Binding ErrorDetalle}"
+               TextColor="#B91C1C"
+               IsVisible="{Binding TieneError}" />
+    </Grid>
+</ContentPage>

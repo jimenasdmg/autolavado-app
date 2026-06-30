@@ -1,0 +1,222 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Admin.AdminHomePage"
+             Shell.NavBarIsVisible="False"
+             Padding="0,18,0,0"
+             BackgroundColor="#F5F7FB">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24,18" Spacing="14">
+            <Border BackgroundColor="#1D4ED8"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14,10">
+                <Border.Shadow>
+                    <Shadow Brush="#18000000" Offset="0,3" Radius="8" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="3">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="3">
+                            <Label Text="{Binding NombreAdministrador, StringFormat='Hola, {0}'}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                            <Label Text="Panel administrador"
+                                   FontSize="13"
+                                   TextColor="#DBEAFE" />
+                        </VerticalStackLayout>
+
+                        <Grid Grid.Column="1" WidthRequest="52" HeightRequest="52" VerticalOptions="Start">
+                            <Button WidthRequest="52"
+                                    HeightRequest="52"
+                                    CornerRadius="16"
+                                    Padding="0"
+                                    BackgroundColor="#1E3A8A"
+                                    TextColor="White"
+                                    FontFamily="FontAwesomeSolid"
+                                    FontSize="20"
+                                    Text="&#xF0F3;"
+                                    Clicked="OnAbrirNotificacionesClicked" />
+
+                            <Border WidthRequest="18"
+                                    HeightRequest="18"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Start"
+                                    Margin="0,-3,-3,0"
+                                    BackgroundColor="#DC2626"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 9"
+                                    IsVisible="{Binding TieneMensajesNoLeidos}">
+                                <Label Text="{Binding MensajesNoLeidosTexto}"
+                                       FontSize="9"
+                                       FontAttributes="Bold"
+                                       TextColor="White"
+                                       HorizontalTextAlignment="Center"
+                                       VerticalTextAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 14"
+                    Padding="12">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Border WidthRequest="34"
+                            HeightRequest="34"
+                            BackgroundColor="#DBEAFE"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 17">
+                        <Label Text="&#xF013;"
+                               FontFamily="FontAwesomeSolid"
+                               FontSize="14"
+                               TextColor="#1D4ED8"
+                               HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center" />
+                    </Border>
+                    <Label Grid.Column="1"
+                           Text="Gestión avanzada de operación y personal"
+                           FontSize="13"
+                           TextColor="#475569"
+                           VerticalTextAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="10">
+                <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="12">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Citas hoy" FontSize="12" TextColor="#64748B" />
+                        <Label Text="{Binding CitasHoy}" FontSize="22" FontAttributes="Bold" TextColor="#0B1F4D" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="12">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Pendientes" FontSize="12" TextColor="#64748B" />
+                        <Label Text="{Binding Pendientes}" FontSize="22" FontAttributes="Bold" TextColor="#F59E0B" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="12">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Finalizadas" FontSize="12" TextColor="#64748B" />
+                        <Label Text="{Binding Finalizadas}" FontSize="22" FontAttributes="Bold" TextColor="#16A34A" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="1" BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="12">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Empleados activos" FontSize="12" TextColor="#64748B" />
+                        <Label Text="{Binding EmpleadosActivos}" FontSize="22" FontAttributes="Bold" TextColor="#2563EB" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Label Text="Gestión de empleados" FontSize="18" FontAttributes="Bold" TextColor="#0B1F4D" />
+            <Button Text="Agregar empleado"
+                    HeightRequest="46"
+                    CornerRadius="12"
+                    BackgroundColor="#3B82F6"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    ImageSource="{FontImageSource Glyph=&#xF234;, FontFamily=FontAwesomeSolid, Size=14, Color=White}"
+                    ContentLayout="Left,8"
+                    Clicked="OnAgregarEmpleadoClicked" />
+
+            <CollectionView ItemsSource="{Binding Empleados}" SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="14" Margin="0,0,0,18" HorizontalOptions="Fill">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="{Binding NombreCompleto}" FontSize="16" FontAttributes="Bold" TextColor="#0B1F4D" LineBreakMode="TailTruncation" MaxLines="2" />
+                                <Label Text="{Binding Email}" FontSize="13" TextColor="#64748B" />
+                                <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="10">
+                                    <Label Text="{Binding EstadoTexto}" FontSize="12" TextColor="{Binding EstadoColor}" VerticalTextAlignment="Center" />
+                                    <Button Grid.Column="1" Text="Cambiar rol" HeightRequest="46" CornerRadius="12" BackgroundColor="#EFF6FF" TextColor="#1E40AF" FontAttributes="Bold" CommandParameter="{Binding .}" Clicked="OnCambiarRolEmpleadoClicked" />
+                                    <Button Grid.Column="2" Text="Activar/Desactivar" HeightRequest="46" CornerRadius="12" BackgroundColor="#F1F5F9" TextColor="#334155" FontAttributes="Bold" CommandParameter="{Binding .}" Clicked="OnCambiarEstadoEmpleadoClicked" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Gestión de servicios" FontSize="18" FontAttributes="Bold" TextColor="#0B1F4D" />
+            <Button Text="Agregar servicio"
+                    HeightRequest="46"
+                    CornerRadius="12"
+                    BackgroundColor="#3B82F6"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    ImageSource="{FontImageSource Glyph=&#xF067;, FontFamily=FontAwesomeSolid, Size=14, Color=White}"
+                    ContentLayout="Left,8"
+                    Clicked="OnAgregarServicioClicked" />
+
+            <CollectionView ItemsSource="{Binding Servicios}" SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="14" Margin="0,0,0,18" HorizontalOptions="Fill">
+                            <VerticalStackLayout Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                        <Border WidthRequest="34"
+                                                HeightRequest="34"
+                                                VerticalOptions="Start"
+                                                BackgroundColor="#DBEAFE"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 17">
+                                            <Label Text="{Binding ImagenVisual}"
+                                                   FontFamily="FontAwesomeSolid"
+                                                   FontSize="14"
+                                                   TextColor="#1D4ED8"
+                                                   HorizontalTextAlignment="Center"
+                                                   VerticalTextAlignment="Center" />
+                                        </Border>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                            <Label Text="{Binding Nombre}" FontSize="16" FontAttributes="Bold" TextColor="#0B1F4D" LineBreakMode="TailTruncation" MaxLines="1" />
+                                            <Label Text="{Binding Descripcion}" FontSize="13" TextColor="#64748B" LineBreakMode="TailTruncation" MaxLines="2" />
+                                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                                                <Label Text="{Binding PrecioTexto}" FontSize="13" FontAttributes="Bold" TextColor="#2563EB" VerticalTextAlignment="Center" />
+                                                <Label Grid.Column="1" Text="{Binding DuracionTexto}" FontSize="12" FontAttributes="Bold" TextColor="#6366F1" VerticalTextAlignment="Center" />
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                    <Border Grid.Column="1" BackgroundColor="{Binding EstadoFondo}" StrokeThickness="0" StrokeShape="RoundRectangle 10" Padding="10,4" VerticalOptions="Start" HorizontalOptions="End">
+                                        <Label Text="{Binding EstadoTexto}" FontSize="11" FontAttributes="Bold" TextColor="{Binding EstadoColor}" />
+                                    </Border>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                    <Button Grid.Column="0" Text="Editar" HeightRequest="42" CornerRadius="14" BackgroundColor="#EFF6FF" TextColor="#1E40AF" FontAttributes="Bold" CommandParameter="{Binding .}" Clicked="OnEditarServicioClicked" />
+                                    <Button Grid.Column="1" Text="{Binding ToggleEstadoTexto}" HeightRequest="42" CornerRadius="14" BackgroundColor="#F1F5F9" TextColor="#334155" FontAttributes="Bold" CommandParameter="{Binding .}" Clicked="OnCambiarEstadoServicioClicked" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <Label Text="Citas globales" FontSize="18" FontAttributes="Bold" TextColor="#0B1F4D" />
+            <CollectionView ItemsSource="{Binding CitasGlobales}" SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="14" Margin="0,0,0,18" HorizontalOptions="Fill">
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="{Binding Servicio}" FontSize="16" FontAttributes="Bold" TextColor="#0B1F4D" />
+                                <Label Text="{Binding Vehiculo}" FontSize="13" TextColor="#64748B" />
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
+                                    <Label Text="{Binding Fecha, StringFormat='{0:dd/MM/yyyy}'}" FontSize="12" TextColor="#64748B" />
+                                    <Label Grid.Column="1" Text="{Binding Hora}" FontSize="12" TextColor="#64748B" />
+                                    <Label Grid.Column="2" Text="{Binding Estado}" HorizontalTextAlignment="End" FontSize="12" FontAttributes="Bold" TextColor="{Binding EstadoColor}" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

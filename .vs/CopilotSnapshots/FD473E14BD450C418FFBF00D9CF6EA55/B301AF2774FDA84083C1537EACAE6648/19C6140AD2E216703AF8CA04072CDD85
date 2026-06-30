@@ -1,0 +1,125 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using System.Text;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class VehiculoService : FirestoreBaseService
+    {
+        private const string ColeccionVehiculos = "vehiculos";
+
+        public VehiculoService(HttpClient httpClient)
+            : base(httpClient, "autolavadoapp-58dc3")
+        {
+        }
+
+        public async Task<List<Vehiculo>> ObtenerVehiculosPorUsuarioAsync(string usuarioId)
+        {
+            var url = BuildDocumentUrl(ColeccionVehiculos);
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return new List<Vehiculo>();
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            var result = new List<Vehiculo>();
+            if (!doc.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+                return result;
+
+            foreach (var d in docs.EnumerateArray())
+            {
+                var v = ParseVehiculo(d);
+                if (v is null) continue;
+
+                var owner = string.IsNullOrWhiteSpace(v.UsuarioId) ? v.ClienteId : v.UsuarioId;
+                if (owner == usuarioId) result.Add(v);
+            }
+
+            return result;
+        }
+
+        public async Task<bool> GuardarVehiculoAsync(Vehiculo vehiculo)
+        {
+            if (vehiculo is null) return false;
+            if (string.IsNullOrWhiteSpace(vehiculo.Id)) vehiculo.Id = Guid.NewGuid().ToString("N");
+
+            var payload = new
+            {
+                vehiculo.Id,
+                vehiculo.UsuarioId,
+                vehiculo.ClienteId,
+                vehiculo.Placa,
+                vehiculo.Marca,
+                vehiculo.Modelo,
+                vehiculo.Color,
+                vehiculo.Anio
+            };
+
+            return await CrearDocumentoAsync($"{ColeccionVehiculos}/{vehiculo.Id}", payload);
+        }
+
+        public async Task<bool> EliminarVehiculoAsync(string vehiculoId)
+        {
+            if (string.IsNullOrWhiteSpace(vehiculoId)) return false;
+
+            var url = BuildDocumentUrl($"{ColeccionVehiculos}/{vehiculoId}");
+            var response = await _httpClient.DeleteAsync(url);
+            return response.IsSuccessStatusCode;
+        }
+
+        private static Vehiculo? ParseVehiculo(JsonElement d)
+        {
+            try
+            {
+                var v = new Vehiculo
+                {
+                    Id = ReadFromFirestoreDoc(d, "Id", "id"),
+                    UsuarioId = ReadFromFirestoreDoc(d, "UsuarioId", "usuarioId"),
+                    ClienteId = ReadFromFirestoreDoc(d, "ClienteId", "clienteId"),
+                    Placa = ReadFromFirestoreDoc(d, "Placa", "placa"),
+                    Marca = ReadFromFirestoreDoc(d, "Marca", "marca"),
+                    Modelo = ReadFromFirestoreDoc(d, "Modelo", "modelo"),
+                    Color = ReadFromFirestoreDoc(d, "Color", "color")
+                };
+
+                var anioTxt = ReadFromFirestoreDoc(d, "Anio", "anio", "Año", "año");
+                v.Anio = int.TryParse(anioTxt, out var a) ? a : 0;
+
+                if (string.IsNullOrWhiteSpace(v.Id) && d.TryGetProperty("name", out var nameProp))
+                {
+                    var full = nameProp.GetString() ?? string.Empty;
+                    v.Id = full.Split('/').LastOrDefault() ?? string.Empty;
+                }
+
+                return v;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string ReadFromFirestoreDoc(JsonElement doc, params string[] keys)
+        {
+            foreach (var key in keys)
+            {
+                if (doc.TryGetProperty(key, out var plain))
+                    return plain.ToString();
+
+                if (doc.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object && fields.TryGetProperty(key, out var f))
+                {
+                    if (f.TryGetProperty("stringValue", out var s)) return s.GetString() ?? string.Empty;
+                    if (f.TryGetProperty("integerValue", out var i)) return i.ToString();
+                    if (f.TryGetProperty("doubleValue", out var d)) return d.ToString();
+                }
+            }
+
+            return string.Empty;
+        }
+    }
+}

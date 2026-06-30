@@ -1,0 +1,112 @@
+﻿using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class FirebaseAuthService
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _apiKey;
+
+        public FirebaseAuthService(HttpClient httpClient, string apiKey)
+        {
+            _httpClient = httpClient;
+            _apiKey = apiKey;
+        }
+
+        public Task<FirebaseAuthResult> LoginAsync(string email, string password)
+        {
+            var endpoint = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={_apiKey}";
+            return EnviarSolicitudAuthAsync(endpoint, email, password);
+        }
+
+        public Task<FirebaseAuthResult> RegisterAsync(string email, string password)
+        {
+            var endpoint = $"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={_apiKey}";
+            return EnviarSolicitudAuthAsync(endpoint, email, password);
+        }
+
+        private async Task<FirebaseAuthResult> EnviarSolicitudAuthAsync(string endpoint, string email, string password)
+        {
+            if (string.IsNullOrWhiteSpace(_apiKey))
+            {
+                return FirebaseAuthResult.Error("Firebase API Key no está configurada.");
+            }
+
+            var payload = new
+            {
+                email,
+                password,
+                returnSecureToken = true
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var response = await _httpClient.PostAsync(endpoint, content);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                if (document.RootElement.TryGetProperty("idToken", out var idTokenElement))
+                {
+                    var idToken = idTokenElement.GetString() ?? string.Empty;
+                    return FirebaseAuthResult.Success(idToken);
+                }
+
+                return FirebaseAuthResult.Error("No se recibió idToken de Firebase.");
+            }
+
+            return FirebaseAuthResult.Error(MapearErrorFirebase(responseBody));
+        }
+
+        private static string MapearErrorFirebase(string responseBody)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                if (document.RootElement.TryGetProperty("error", out var errorElement) &&
+                    errorElement.TryGetProperty("message", out var messageElement))
+                {
+                    var message = messageElement.GetString();
+                    return message switch
+                    {
+                        "EMAIL_NOT_FOUND" => "El usuario no existe.",
+                        "INVALID_PASSWORD" => "Contraseña incorrecta.",
+                        "USER_DISABLED" => "La cuenta de usuario está deshabilitada.",
+                        "EMAIL_EXISTS" => "Este correo ya está registrado.",
+                        "INVALID_EMAIL" => "El correo electrónico no es válido.",
+                        "WEAK_PASSWORD : Password should be at least 6 characters" => "La contraseña debe tener al menos 6 caracteres.",
+                        _ => $"Error de Firebase: {message}"
+                    };
+                }
+            }
+            catch
+            {
+            }
+
+            return "No fue posible autenticar con Firebase.";
+        }
+    }
+
+    public sealed class FirebaseAuthResult
+    {
+        private FirebaseAuthResult(bool isSuccess, string idToken, string errorMessage)
+        {
+            IsSuccess = isSuccess;
+            IdToken = idToken;
+            ErrorMessage = errorMessage;
+        }
+
+        public bool IsSuccess { get; }
+        public string IdToken { get; }
+        public string ErrorMessage { get; }
+
+        public static FirebaseAuthResult Success(string idToken) => new FirebaseAuthResult(true, idToken, string.Empty);
+
+        public static FirebaseAuthResult Error(string errorMessage) => new FirebaseAuthResult(false, string.Empty, errorMessage);
+    }
+}

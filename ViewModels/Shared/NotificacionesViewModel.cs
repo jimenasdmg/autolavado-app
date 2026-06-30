@@ -1,0 +1,135 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Windows.Input;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels.Shared;
+
+public class NotificacionesViewModel : INotifyPropertyChanged
+{
+    private readonly SessionService _sessionService;
+    private readonly NotificacionService _notificacionService;
+    private string _errorDetalle = string.Empty;
+    private bool _isBusy;
+
+    public ObservableCollection<NotificacionItemView> Notificaciones { get; } = new();
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public NotificacionesViewModel(SessionService sessionService, NotificacionService notificacionService)
+    {
+        _sessionService = sessionService;
+        _notificacionService = notificacionService;
+        MarcarLeidaCommand = new Command<NotificacionItemView>(async item => await MarcarLeidaAsync(item));
+    }
+
+    public ICommand MarcarLeidaCommand { get; }
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set { if (_isBusy != value) { _isBusy = value; OnPropertyChanged(); } }
+    }
+
+    public string ErrorDetalle
+    {
+        get => _errorDetalle;
+        private set { if (_errorDetalle != value) { _errorDetalle = value; OnPropertyChanged(); } }
+    }
+
+    public async Task CargarAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var sesion = await _sessionService.ObtenerSesionActualAsync();
+            var uid = sesion.Uid;
+            var token = string.IsNullOrWhiteSpace(sesion.IdToken) ? await _sessionService.ObtenerTokenAsync() : sesion.IdToken;
+
+            if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(token))
+            {
+                ErrorDetalle = "No hay sesión activa.";
+                return;
+            }
+
+            var items = await _notificacionService.ObtenerPorUsuarioAsync(uid, token);
+            Notificaciones.Clear();
+            foreach (var item in items)
+            {
+                Notificaciones.Add(new NotificacionItemView
+                {
+                    Id = item.Id,
+                    Titulo = item.Titulo,
+                    Mensaje = item.Mensaje,
+                    Fecha = item.Fecha,
+                    Leida = item.Leida
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task MarcarLeidaAsync(NotificacionItemView? item)
+    {
+        if (item is null || item.Leida)
+        {
+            return;
+        }
+
+        var token = await _sessionService.ObtenerTokenAsync();
+        if (string.IsNullOrWhiteSpace(token) || SessionService.TokenExpirado(token))
+        {
+            return;
+        }
+
+        var ok = await _notificacionService.MarcarComoLeidaAsync(item.Id, token);
+        if (ok)
+        {
+            item.Leida = true;
+        }
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}
+
+public class NotificacionItemView : INotifyPropertyChanged
+{
+    private bool _leida;
+
+    public string Id { get; set; } = string.Empty;
+    public string Titulo { get; set; } = string.Empty;
+    public string Mensaje { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+
+    public bool Leida
+    {
+        get => _leida;
+        set
+        {
+            if (_leida == value) return;
+            _leida = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Leida)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EsNoLeido)));
+        }
+    }
+
+    public bool EsNoLeido => !Leida;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}

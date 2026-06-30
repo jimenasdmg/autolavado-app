@@ -1,0 +1,38 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class MiCuentaPage : ContentPage
+{
+    private readonly MiCuentaViewModel _viewModel;
+
+    public MiCuentaPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<MiCuentaViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver MiCuentaViewModel desde DI.");
+
+        _viewModel.MostrarAlertaAsync = (titulo, mensaje, cancelar) => DisplayAlertAsync(titulo, mensaje, cancelar);
+        _viewModel.NavegarMisVehiculosAsync = async () => await Navigation.PushAsync(new MisVehiculosPage());
+        _viewModel.NavegarMisCitasAsync = async () => await Navigation.PushAsync(new MisCitasPage());
+        _viewModel.NavegarLoginAsync = () =>
+        {
+            Application.Current!.MainPage = new NavigationPage(new LoginPage());
+            return Task.CompletedTask;
+        };
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarPerfilAsync();
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+}

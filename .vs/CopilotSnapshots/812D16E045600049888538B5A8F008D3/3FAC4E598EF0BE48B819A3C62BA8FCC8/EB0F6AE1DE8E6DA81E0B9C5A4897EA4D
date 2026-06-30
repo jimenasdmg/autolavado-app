@@ -1,0 +1,68 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class AgendarCitaPage : ContentPage
+{
+    private readonly AgendarCitaViewModel _viewModel;
+    private bool _animacionInicialEjecutada;
+
+    public AgendarCitaPage()
+    {
+        InitializeComponent();
+        NavigationPage.SetHasNavigationBar(this, false);
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AgendarCitaViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AgendarCitaViewModel desde DI.");
+
+        _viewModel.MostrarAlertaAsync = async (titulo, mensaje, aceptar) =>
+            await DisplayAlertAsync(titulo, mensaje, aceptar);
+
+        _viewModel.PedirMetodoPagoAsync = async () =>
+        {
+            var opcion = await DisplayActionSheet("¿Deseas pagar ahora o en sucursal?", "Cancelar", null, "Pagar ahora", "Pagar en sucursal");
+            if (string.Equals(opcion, "Cancelar", StringComparison.OrdinalIgnoreCase)) return null;
+            return opcion;
+        };
+
+        _viewModel.PreguntarEntregaDevueltaAsync = async () =>
+        {
+            var costo = 50;
+            var aceptar = await DisplayAlert("Entrega de vuelta", $"¿Deseas que te entreguemos el vehículo de vuelta en la misma ubicación? Esto tendrá un cargo extra de ${costo}.", "Sí", "No");
+            return aceptar;
+        };
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (!_animacionInicialEjecutada)
+        {
+            _animacionInicialEjecutada = true;
+            MainContent.Opacity = 0;
+            MainContent.TranslationY = 12;
+        }
+
+        await _viewModel.CargarDatosAsync();
+
+        if (MainContent.Opacity < 1)
+        {
+            await Task.WhenAll(
+                MainContent.FadeToAsync(1, 280, Easing.CubicOut),
+                MainContent.TranslateToAsync(0, 0, 280, Easing.CubicOut));
+        }
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnAgregarVehiculoClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new AgregarVehiculoPage());
+    }
+}

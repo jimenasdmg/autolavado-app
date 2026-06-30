@@ -1,0 +1,155 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data;
+
+public class MensajeService : FirestoreBaseService
+{
+    private const string Coleccion = "mensajes";
+
+    public MensajeService(HttpClient httpClient)
+        : base(httpClient)
+    {
+    }
+
+    public static string ConstruirConversacionId(string adminUid, string empleadoUid)
+    {
+        return string.Compare(adminUid, empleadoUid, StringComparison.Ordinal) < 0
+            ? $"{adminUid}_{empleadoUid}"
+            : $"{empleadoUid}_{adminUid}";
+    }
+
+    public async Task<bool> EnviarMensajeAsync(
+        string adminUid,
+        string remitenteId,
+        string remitenteRol,
+        string destinatarioId,
+        string texto,
+        string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(remitenteId) || string.IsNullOrWhiteSpace(destinatarioId) || string.IsNullOrWhiteSpace(texto))
+            return false;
+
+        var empleadoUid = remitenteRol == "admin" ? destinatarioId : remitenteId;
+        var conversacionId = ConstruirConversacionId(adminUid, empleadoUid);
+        var mensajeId = Guid.NewGuid().ToString("N");
+
+        var body = JsonSerializer.Serialize(new
+        {
+            fields = new Dictionary<string, object>
+            {
+                ["id"] = new { stringValue = mensajeId },
+                ["conversacionId"] = new { stringValue = conversacionId },
+                ["remitenteId"] = new { stringValue = remitenteId },
+                ["remitenteRol"] = new { stringValue = remitenteRol },
+                ["destinatarioId"] = new { stringValue = destinatarioId },
+                ["mensaje"] = new { stringValue = texto.Trim() },
+                ["fechaEnvio"] = new { timestampValue = DateTime.UtcNow.ToString("O") },
+                ["leido"] = new { booleanValue = false }
+            }
+        });
+
+        Debug.WriteLine($"[MENSAJES][SEND] conv={conversacionId} from={remitenteId} to={destinatarioId} id={mensajeId}");
+
+        await CrearDocumentoAsync(Coleccion, body, mensajeId, idToken);
+        return true;
+    }
+
+    public async Task<List<MensajeInterno>> ObtenerMensajesAsync(string conversacionId, string idToken)
+    {
+        Debug.WriteLine($"[MENSAJES][READ] conv={conversacionId}");
+        var docs = await ListarDocumentosAsync(Coleccion, idToken);
+        var mensajes = docs
+            .Select(Mapear)
+            .Where(m => m != null && m.ConversacionId == conversacionId)
+            .OrderBy(m => m!.FechaEnvio)
+            .Select(m => m!)
+            .ToList();
+
+        return mensajes;
+    }
+
+    public async Task<List<string>> ObtenerConversacionesAsync(string uid, string idToken)
+    {
+        var docs = await ListarDocumentosAsync(Coleccion, idToken);
+        var conversaciones = docs
+            .Select(Mapear)
+            .Where(m => m != null && (m.RemitenteId == uid || m.DestinatarioId == uid))
+            .Select(m => m!.ConversacionId)
+            .Distinct()
+            .ToList();
+
+        Debug.WriteLine($"[MENSAJES][CONVERSACIONES] uid={uid} total={conversaciones.Count}");
+        return conversaciones;
+    }
+
+    public async Task<int> ContarNoLeidosAsync(string uid, string idToken)
+    {
+        var docs = await ListarDocumentosAsync(Coleccion, idToken);
+        var total = docs
+            .Select(Mapear)
+            .Count(m => m != null && m.DestinatarioId == uid && !m.Leido);
+
+        return total;
+    }
+
+    public async Task MarcarComoLeidoAsync(string conversacionId, string uid, string idToken)
+    {
+        var docs = await ListarDocumentosAsync(Coleccion, idToken);
+        foreach (var doc in docs)
+        {
+            var msg = Mapear(doc);
+            if (msg == null) continue;
+            if (msg.ConversacionId != conversacionId || msg.DestinatarioId != uid || msg.Leido) continue;
+
+            var patch = JsonSerializer.Serialize(new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["leido"] = new { booleanValue = true }
+                }
+            });
+
+            Debug.WriteLine($"[MENSAJES][READ_MARK] id={msg.Id} uid={uid}");
+            await ActualizarDocumentoAsync(Coleccion, msg.Id, patch, idToken, "leido");
+        }
+    }
+
+    private static MensajeInterno? Mapear(Dictionary<string, JsonElement> doc)
+    {
+        if (!doc.TryGetValue("fields", out var fields)) return null;
+
+        string GetString(string key)
+            => fields.TryGetProperty(key, out var p) && p.TryGetProperty("stringValue", out var v) ? v.GetString() ?? string.Empty : string.Empty;
+
+        bool GetBool(string key)
+            => fields.TryGetProperty(key, out var p) && p.TryGetProperty("booleanValue", out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? v.GetBoolean()
+                : false;
+
+        DateTime GetDate(string key)
+        {
+            if (fields.TryGetProperty(key, out var p) && p.TryGetProperty("timestampValue", out var v) && DateTime.TryParse(v.GetString(), out var d))
+                return d.ToUniversalTime();
+            return DateTime.UtcNow;
+        }
+
+        return new MensajeInterno
+        {
+            Id = GetString("id"),
+            ConversacionId = GetString("conversacionId"),
+            RemitenteId = GetString("remitenteId"),
+            RemitenteRol = GetString("remitenteRol"),
+            DestinatarioId = GetString("destinatarioId"),
+            Mensaje = GetString("mensaje"),
+            FechaEnvio = GetDate("fechaEnvio"),
+            Leido = GetBool("leido")
+        };
+    }
+}

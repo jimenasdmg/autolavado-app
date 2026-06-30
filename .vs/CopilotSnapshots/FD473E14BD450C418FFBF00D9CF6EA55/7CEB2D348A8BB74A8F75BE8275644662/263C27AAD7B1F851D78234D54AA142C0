@@ -1,0 +1,232 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class ServicioService : FirestoreBaseService
+    {
+        private const string ColeccionServicios = "servicios";
+
+        public ServicioService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> CrearServicioAsync(string nombre, string descripcion, decimal precio, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "nombre", nombre },
+                { "descripcion", descripcion },
+                { "precio", precio },
+                { "activo", true }
+            };
+
+            return CrearDocumentoAsync(ColeccionServicios, datos, idToken);
+        }
+
+        public async Task<List<ServicioAdminResumen>> ObtenerServiciosAsync(string? idToken = null)
+        {
+            var json = await ObtenerDocumentosAsync(ColeccionServicios, idToken);
+            using var document = JsonDocument.Parse(json);
+
+            var servicios = new List<ServicioAdminResumen>();
+            if (!document.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+            {
+                return servicios;
+            }
+
+            foreach (var doc in docs.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                servicios.Add(new ServicioAdminResumen
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    Nombre = LeerString(fields, "nombre") ?? string.Empty,
+                    Descripcion = LeerString(fields, "descripcion") ?? string.Empty,
+                    Precio = LeerDecimal(fields, "precio"),
+                    DuracionMinutos = LeerEntero(fields, "duracion"),
+                    Activo = LeerBool(fields, "activo") ?? true
+                });
+            }
+
+            return servicios
+                .OrderBy(s => s.Nombre)
+                .ToList();
+        }
+
+        public async Task<List<ServicioAdminResumen>> ObtenerServiciosActivosAsync(string? idToken = null)
+        {
+            var json = await ObtenerDocumentosAsync(ColeccionServicios, idToken);
+            using var document = JsonDocument.Parse(json);
+
+            var servicios = new List<ServicioAdminResumen>();
+            if (!document.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+            {
+                return servicios;
+            }
+
+            foreach (var doc in docs.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                var activo = LeerBool(fields, "activo") ?? true;
+                if (!activo)
+                {
+                    continue;
+                }
+
+                servicios.Add(new ServicioAdminResumen
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    Nombre = LeerString(fields, "nombre") ?? string.Empty,
+                    Descripcion = LeerString(fields, "descripcion") ?? string.Empty,
+                    Precio = LeerDecimal(fields, "precio"),
+                    DuracionMinutos = LeerEntero(fields, "duracion"),
+                    Activo = true
+                });
+            }
+
+            return servicios
+                .OrderBy(s => s.Nombre)
+                .ToList();
+        }
+
+        public Task EditarServicioAsync(string servicioId, string nombre, string descripcion, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "nombre", nombre },
+                { "descripcion", descripcion }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionServicios, servicioId, datos, idToken);
+        }
+
+        public Task CambiarPrecioAsync(string servicioId, decimal precio, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "precio", precio }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionServicios, servicioId, datos, idToken);
+        }
+
+        public Task CambiarEstadoAsync(string servicioId, bool activo, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "activo", activo }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionServicios, servicioId, datos, idToken);
+        }
+
+        private static string ObtenerIdDocumento(JsonElement documento)
+        {
+            if (!documento.TryGetProperty("name", out var nameElement))
+            {
+                return string.Empty;
+            }
+
+            var name = nameElement.GetString() ?? string.Empty;
+            var partes = name.Split('/');
+            return partes.Length == 0 ? string.Empty : partes[^1];
+        }
+
+        private static string? LeerString(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+            {
+                return null;
+            }
+
+            return stringValueElement.GetString();
+        }
+
+        private static bool? LeerBool(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("booleanValue", out var boolElement))
+            {
+                return null;
+            }
+
+            return boolElement.GetBoolean();
+        }
+
+        private static decimal LeerDecimal(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return 0m;
+            }
+
+            if (propiedadElement.TryGetProperty("doubleValue", out var doubleElement))
+            {
+                return (decimal)doubleElement.GetDouble();
+            }
+
+            if (propiedadElement.TryGetProperty("integerValue", out var integerElement) &&
+                decimal.TryParse(integerElement.GetString(), out var intDecimal))
+            {
+                return intDecimal;
+            }
+
+            return 0m;
+        }
+
+        private static int LeerEntero(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return 0;
+            }
+
+            if (propiedadElement.TryGetProperty("integerValue", out var integerValueElement) &&
+                int.TryParse(integerValueElement.GetString(), out var intValue))
+            {
+                return intValue;
+            }
+
+            if (propiedadElement.TryGetProperty("stringValue", out var stringValueElement) &&
+                int.TryParse(stringValueElement.GetString(), out var intStringValue))
+            {
+                return intStringValue;
+            }
+
+            return 0;
+        }
+    }
+
+    public class ServicioAdminResumen
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal Precio { get; set; }
+        public int DuracionMinutos { get; set; }
+        public bool Activo { get; set; }
+    }
+}

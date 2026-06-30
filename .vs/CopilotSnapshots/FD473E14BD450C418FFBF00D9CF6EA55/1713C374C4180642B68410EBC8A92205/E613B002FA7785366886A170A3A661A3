@@ -1,0 +1,45 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class LoginPage : ContentPage
+{
+    private readonly AutenticacionViewModel _authViewModel;
+
+    public LoginPage()
+    {
+        InitializeComponent();
+        NavigationPage.SetHasNavigationBar(this, false);
+        _authViewModel = IPlatformApplication.Current?.Services.GetService<AutenticacionViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AutenticacionViewModel desde DI.");
+        BindingContext = _authViewModel;
+
+        // Asegurar que LoginPage tenga el BindingContext correcto para resolver los bindings del ViewModel Autenticacion
+        BindingContext = new AutoLavadoApp.ViewModels.Autenticacion();
+    }
+
+    private async void OnIniciarSesionClicked(object? sender, EventArgs e)
+    {
+        var ok = await _authViewModel.LoginAsync(EmailEntry.Text, PasswordEntry.Text);
+
+        if (ok)
+        {
+            await DisplayAlertAsync("✅ Bienvenido", "Inicio de sesión correcto.", "Continuar");
+            var rol = _authViewModel.UsuarioActual?.Rol ?? "cliente";
+            Page destino = rol switch
+            {
+                "empleado" => new EmpleadoHomePage(),
+                "admin" => new AdminTabbedPage(),
+                _ => new HomePage()
+            };
+
+            Application.Current!.MainPage = new NavigationPage(destino);
+            return;
+        }
+    }
+
+    private async void OnIrCrearCuentaClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new RegisterPage());
+    }
+}

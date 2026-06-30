@@ -1,0 +1,122 @@
+﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class EmpleadoViewModel : INotifyPropertyChanged
+    {
+        private readonly SessionService _sessionService;
+        private readonly UsuarioService _usuarioService;
+        private readonly CitaService _citaService;
+        private string _nombreEmpleado = "Empleado";
+        private int _citasPendientes;
+        private int _citasFinalizadas;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public EmpleadoViewModel(SessionService sessionService, UsuarioService usuarioService, CitaService citaService)
+        {
+            _sessionService = sessionService;
+            _usuarioService = usuarioService;
+            _citaService = citaService;
+            IrMisCitasCommand = new Command(async () => await IrMisCitasAsync());
+        }
+
+        public string NombreEmpleado
+        {
+            get => _nombreEmpleado;
+            private set => SetProperty(ref _nombreEmpleado, value);
+        }
+
+        public int CitasPendientes
+        {
+            get => _citasPendientes;
+            private set => SetProperty(ref _citasPendientes, value);
+        }
+
+        public int CitasFinalizadas
+        {
+            get => _citasFinalizadas;
+            private set => SetProperty(ref _citasFinalizadas, value);
+        }
+
+        public ICommand IrMisCitasCommand { get; }
+
+        public Func<Task>? IrMisCitasAsync { get; set; }
+
+        public async Task CargarDatosAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            if (!string.IsNullOrWhiteSpace(uid))
+            {
+                var perfil = await _usuarioService.ObtenerClientePorIdAsync(uid)
+                    ?? await _usuarioService.ObtenerUsuarioPorIdAsync(uid);
+
+                if (perfil != null)
+                {
+                    NombreEmpleado = string.IsNullOrWhiteSpace(perfil.Nombre)
+                        ? "Empleado"
+                        : perfil.Nombre;
+                }
+            }
+
+            var raw = await _citaService.ObtenerCitasAsync();
+            using var document = JsonDocument.Parse(raw);
+
+            var pendientes = 0;
+            var finalizadas = 0;
+
+            if (document.RootElement.TryGetProperty("documents", out var docs) && docs.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var doc in docs.EnumerateArray())
+                {
+                    if (!doc.TryGetProperty("fields", out var fields))
+                    {
+                        continue;
+                    }
+
+                    if (!fields.TryGetProperty("estado", out var estadoField) ||
+                        !estadoField.TryGetProperty("stringValue", out var estadoValue))
+                    {
+                        continue;
+                    }
+
+                    var estado = estadoValue.GetString();
+                    if (estado == "Pendiente")
+                    {
+                        pendientes++;
+                    }
+                    else if (estado == "Finalizada")
+                    {
+                        finalizadas++;
+                    }
+                }
+            }
+
+            CitasPendientes = pendientes;
+            CitasFinalizadas = finalizadas;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

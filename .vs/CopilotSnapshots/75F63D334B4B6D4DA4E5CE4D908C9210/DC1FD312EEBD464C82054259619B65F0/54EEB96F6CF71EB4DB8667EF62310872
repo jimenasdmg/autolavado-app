@@ -1,0 +1,123 @@
+﻿using System.Text.Json;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data;
+
+public class UsuarioService : FirestoreBaseService
+{
+    private const string Collection = "usuarios";
+
+    public UsuarioService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+
+    public async Task<bool> GuardarUsuarioConRolAsync(Usuario usuario)
+    {
+        return await GuardarUsuarioAsync(usuario);
+    }
+
+    public async Task<bool> GuardarUsuarioAsync(Usuario usuario)
+    {
+        var uid = usuario.Uid;
+        if (string.IsNullOrWhiteSpace(uid)) return false;
+        if (string.IsNullOrWhiteSpace(usuario.IdToken)) return false;
+
+        var body = new
+        {
+            fields = new Dictionary<string, object>
+            {
+                ["uid"] = new { stringValue = uid },
+                ["nombre"] = new { stringValue = (usuario.Nombre ?? string.Empty) },
+                ["correo"] = new { stringValue = (usuario.Correo ?? usuario.Email ?? string.Empty) },
+                ["rol"] = new { stringValue = (usuario.Rol ?? "cliente") }
+            }
+        };
+
+        return await CrearDocumentoAsync(Collection, body, uid, usuario.IdToken);
+    }
+
+    public async Task<Usuario?> ObtenerUsuarioPorIdAsync(string uid, string? idToken = null)
+    {
+        var doc = await ObtenerDocumentoAsync(Collection, uid, idToken);
+        if (doc is null) return null;
+
+        var root = doc.Value;
+        if (!root.TryGetProperty("fields", out var f)) return null;
+
+        return new Usuario
+        {
+            Uid = ReadString(f, "uid") ?? uid,
+            Nombre = ReadString(f, "nombre") ?? string.Empty,
+            Correo = ReadString(f, "correo") ?? string.Empty,
+            Email = ReadString(f, "correo") ?? string.Empty,
+            Rol = ReadString(f, "rol") ?? "cliente"
+        };
+    }
+
+    public async Task<string?> ObtenerRolPorUidAsync(string uid, string? idToken = null)
+    {
+        var usuario = await ObtenerUsuarioPorIdAsync(uid, idToken);
+        return usuario?.Rol;
+    }
+
+    public async Task<Usuario?> ObtenerPorEmailAsync(string email, string? idToken = null)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var doc = await ObtenerColeccionAsync(Collection, idToken);
+        if (doc is null)
+        {
+            return null;
+        }
+
+        if (!doc.Value.TryGetProperty("documents", out var documents) || documents.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var emailNormalized = email.Trim().ToLowerInvariant();
+        foreach (var d in documents.EnumerateArray())
+        {
+            if (!d.TryGetProperty("fields", out var f))
+            {
+                continue;
+            }
+
+            var correo = (ReadString(f, "correo") ?? ReadString(f, "email") ?? string.Empty).Trim().ToLowerInvariant();
+            if (!string.Equals(correo, emailNormalized, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var uid = ReadString(f, "uid");
+            if (string.IsNullOrWhiteSpace(uid) && d.TryGetProperty("name", out var nameElement))
+            {
+                var name = nameElement.GetString() ?? string.Empty;
+                var partes = name.Split('/');
+                uid = partes.Length > 0 ? partes[^1] : string.Empty;
+            }
+
+            return new Usuario
+            {
+                Uid = uid ?? string.Empty,
+                Nombre = ReadString(f, "nombre") ?? string.Empty,
+                Correo = ReadString(f, "correo") ?? ReadString(f, "email") ?? string.Empty,
+                Rol = ReadString(f, "rol") ?? "cliente",
+                IdToken = ReadString(f, "idToken") ?? string.Empty
+            };
+        }
+
+        return null;
+    }
+
+    private static string? ReadString(JsonElement fields, string key)
+    {
+        if (!fields.TryGetProperty(key, out var v)) return null;
+        if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+        return null;
+    }
+}

@@ -1,0 +1,190 @@
+﻿using System.Net.Http.Json;
+using System.Diagnostics;
+using System.Collections;
+using System.Text.Json;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.Services.Core;
+
+public abstract class FirestoreBaseService
+{
+    protected readonly HttpClient _httpClient;
+    protected readonly string _projectId;
+
+    protected const string DefaultProjectId = "autolavadoapp-f9a62";
+
+    public FirestoreBaseService(HttpClient httpClient, string? projectId = null)
+    {
+        _httpClient = httpClient;
+        _projectId = string.IsNullOrWhiteSpace(projectId) ? DefaultProjectId : projectId;
+    }
+
+    protected string BuildDocumentUrl(string collection, string? documentId = null)
+    {
+        var baseUrl = $"https://firestore.googleapis.com/v1/projects/{_projectId}/databases/(default)/documents/{collection}";
+        return string.IsNullOrWhiteSpace(documentId) ? baseUrl : $"{baseUrl}/{documentId}";
+    }
+
+    protected async Task<bool> CrearDocumentoAsync(string collection, object body, string? documentId = null, string? idToken = null)
+    {
+        if (string.IsNullOrWhiteSpace(idToken))
+        {
+            Debug.WriteLine($"[FIRESTORE][WRITE][BLOCKED] collection={collection}, doc={documentId ?? "(auto)"}, reason=missing_token");
+            return false;
+        }
+
+        var url = string.IsNullOrWhiteSpace(documentId)
+            ? BuildDocumentUrl(collection)
+            : $"{BuildDocumentUrl(collection)}?documentId={Uri.EscapeDataString(documentId)}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = JsonContent.Create(body)
+        };
+
+        if (!string.IsNullOrWhiteSpace(idToken))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", idToken);
+        }
+
+        var jsonBody = JsonSerializer.Serialize(body);
+        Debug.WriteLine($"[FIRESTORE][WRITE] URL: {url}");
+        Debug.WriteLine($"[FIRESTORE][WRITE] BODY: {jsonBody}");
+
+        var response = await _httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Debug.WriteLine($"[FIRESTORE][WRITE] RESPONSE: {(int)response.StatusCode} {responseBody}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine(responseBody);
+            Console.WriteLine(response.StatusCode);
+            Console.WriteLine(url);
+            throw FirebaseErrorMapper.MapearErrorHttp(response.StatusCode, responseBody, "Error al escribir en Firestore.");
+        }
+
+        return true;
+    }
+
+    protected async Task<bool> ActualizarDocumentoAsync(string collection, string documentId, object body, string? idToken = null)
+    {
+        if (string.IsNullOrWhiteSpace(idToken) || string.IsNullOrWhiteSpace(documentId))
+        {
+            Debug.WriteLine($"[FIRESTORE][PATCH][BLOCKED] collection={collection}, doc={documentId}, reason=missing_data");
+            return false;
+        }
+
+        var url = BuildDocumentUrl(collection, documentId);
+        var fieldPaths = ObtenerFieldPaths(body);
+        var queryParts = new List<string> { "currentDocument.exists=true" };
+        queryParts.AddRange(fieldPaths.Select(path => $"updateMask.fieldPaths={Uri.EscapeDataString(path)}"));
+        url = $"{url}?{string.Join("&", queryParts)}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Patch, url)
+        {
+            Content = JsonContent.Create(body)
+        };
+
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", idToken);
+
+        var jsonBody = JsonSerializer.Serialize(body);
+        Debug.WriteLine($"[FIRESTORE][PATCH] URL: {url}");
+        Debug.WriteLine($"[FIRESTORE][PATCH] BODY: {jsonBody}");
+
+        var response = await _httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        Debug.WriteLine($"[FIRESTORE][PATCH] RESPONSE: {(int)response.StatusCode} {responseBody}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine(responseBody);
+            Console.WriteLine(response.StatusCode);
+            Console.WriteLine(url);
+            throw FirebaseErrorMapper.MapearErrorHttp(response.StatusCode, responseBody, "Error al actualizar documento en Firestore.");
+        }
+
+        return true;
+    }
+
+    protected async Task<JsonElement?> ObtenerDocumentoAsync(string collection, string documentId, string? idToken = null)
+    {
+        var url = BuildDocumentUrl(collection, documentId);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        if (!string.IsNullOrWhiteSpace(idToken))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", idToken);
+        }
+
+        Debug.WriteLine($"[FIRESTORE][GET] URL: {url}");
+
+        var response = await _httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        Debug.WriteLine($"[FIRESTORE][GET] RESPONSE: {(int)response.StatusCode} {responseBody}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine(responseBody);
+            Console.WriteLine(response.StatusCode);
+            Console.WriteLine(url);
+            return null;
+        }
+
+        using var doc = JsonDocument.Parse(responseBody);
+        return doc.RootElement.Clone();
+    }
+
+    protected async Task<JsonElement?> ObtenerColeccionAsync(string collection, string? idToken = null)
+    {
+        var url = BuildDocumentUrl(collection);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        if (!string.IsNullOrWhiteSpace(idToken))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", idToken);
+        }
+
+        Debug.WriteLine($"[FIRESTORE][LIST] URL: {url}");
+
+        var response = await _httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        Debug.WriteLine($"[FIRESTORE][LIST] RESPONSE: {(int)response.StatusCode} {responseBody}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine(responseBody);
+            Console.WriteLine(response.StatusCode);
+            Console.WriteLine(url);
+            return null;
+        }
+
+        using var doc = JsonDocument.Parse(responseBody);
+        return doc.RootElement.Clone();
+    }
+
+    private static List<string> ObtenerFieldPaths(object body)
+    {
+        var result = new List<string>();
+        if (body is null)
+        {
+            return result;
+        }
+
+        var fieldsProperty = body.GetType().GetProperty("fields");
+        if (fieldsProperty?.GetValue(body) is not IDictionary dictionary)
+        {
+            return result;
+        }
+
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (entry.Key is string key && !string.IsNullOrWhiteSpace(key))
+            {
+                result.Add(key);
+            }
+        }
+
+        return result;
+    }
+}

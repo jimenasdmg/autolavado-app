@@ -1,0 +1,296 @@
+﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class AutenticacionViewModel : INotifyPropertyChanged
+    {
+        private readonly AuthService _authService;
+        private readonly SessionService _sessionService;
+        private readonly UsuarioService _usuarioService;
+        private Usuario? _usuarioActual;
+        private string _idToken = string.Empty;
+        private string _email = string.Empty;
+        private string _password = string.Empty;
+        private bool _estaAutenticado;
+        private string _mensajeError = string.Empty;
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public AutenticacionViewModel(AuthService authService, SessionService sessionService, UsuarioService usuarioService)
+        {
+            _authService = authService;
+            _sessionService = sessionService;
+            _usuarioService = usuarioService;
+            LoginCommand = new Command(async () => await ExecuteLoginAsync(), () => CanLogin());
+            LogoutCommand = new Command(ExecuteLogout, () => EstaAutenticado);
+        }
+
+        public string IdToken
+        {
+            get => _idToken;
+            private set
+            {
+                if (_idToken != value)
+                {
+                    _idToken = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public Usuario? UsuarioActual
+        {
+            get => _usuarioActual;
+            private set
+            {
+                if (_usuarioActual != value)
+                {
+                    _usuarioActual = value;
+                    OnPropertyChanged();
+                    EstaAutenticado = value != null;
+                }
+            }
+        }
+
+        public string Email
+        {
+            get => _email;
+            set
+            {
+                if (_email != value)
+                {
+                    _email = value;
+                    OnPropertyChanged();
+                    ((Command)LoginCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public string Password
+        {
+            get => _password;
+            set
+            {
+                if (_password != value)
+                {
+                    _password = value;
+                    OnPropertyChanged();
+                    ((Command)LoginCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public bool EstaAutenticado
+        {
+            get => _estaAutenticado;
+            private set
+            {
+                if (_estaAutenticado != value)
+                {
+                    _estaAutenticado = value;
+                    OnPropertyChanged();
+                    ((Command)LogoutCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public string MensajeError
+        {
+            get => _mensajeError;
+            private set
+            {
+                if (_mensajeError != value)
+                {
+                    _mensajeError = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(MensajeError);
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (_isBusy != value)
+                {
+                    _isBusy = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(CanInteract));
+                    ((Command)LoginCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public bool CanInteract => !IsBusy;
+
+        public ICommand LoginCommand { get; }
+        public ICommand LogoutCommand { get; }
+
+        public async Task<bool> LoginAsync(string? email, string? password)
+        {
+            if (IsBusy)
+            {
+                return false;
+            }
+
+            MensajeError = string.Empty;
+
+            Email = email ?? string.Empty;
+            Password = password ?? string.Empty;
+
+            if (!CanLogin())
+            {
+                MensajeError = "Debes capturar email y contraseña.";
+                return false;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var result = await _authService.LoginAsync(Email, Password);
+
+                if (!result.IsSuccess)
+                {
+                    MensajeError = result.ErrorMessage;
+                    return false;
+                }
+
+                var perfil = await _usuarioService.ObtenerClientePorIdAsync(result.UserId)
+                    ?? await _usuarioService.ObtenerUsuarioPorIdAsync(result.UserId);
+
+                var rol = perfil?.Rol ?? "cliente";
+
+                IdToken = result.IdToken;
+                UsuarioActual = new Usuario
+                {
+                    Id = result.UserId,
+                    Email = Email,
+                    Nombre = perfil?.Nombre ?? Email,
+                    ApellidoPaterno = perfil?.ApellidoPaterno ?? string.Empty,
+                    ApellidoMaterno = perfil?.ApellidoMaterno ?? string.Empty,
+                    Rol = rol
+                };
+
+                await _sessionService.GuardarSesionAsync(result.UserId, Email.Trim(), result.IdToken, rol);
+
+                Password = string.Empty;
+                return true;
+            }
+            catch (FirebaseServiceException ex)
+            {
+                MensajeError = ex.Message;
+                return false;
+            }
+            catch
+            {
+                MensajeError = "Ocurrió un problema al iniciar sesión. Intenta nuevamente.";
+                return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public async Task<bool> RegisterAsync(string? email, string? password)
+        {
+            if (IsBusy)
+            {
+                return false;
+            }
+
+            MensajeError = string.Empty;
+
+            Email = email ?? string.Empty;
+            Password = password ?? string.Empty;
+
+            if (!CanLogin())
+            {
+                MensajeError = "Debes capturar email y contraseña.";
+                return false;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var result = await _authService.RegisterAsync(Email, Password);
+                if (!result.IsSuccess)
+                {
+                    MensajeError = result.ErrorMessage;
+                    return false;
+                }
+
+                IdToken = result.IdToken;
+                UsuarioActual = new Usuario
+                {
+                    Id = result.UserId,
+                    Email = Email,
+                    Nombre = Email,
+                    Rol = "cliente"
+                };
+
+                await _sessionService.GuardarSesionAsync(result.UserId, Email.Trim(), result.IdToken, "cliente");
+
+                Password = string.Empty;
+                return true;
+            }
+            catch (FirebaseServiceException ex)
+            {
+                MensajeError = ex.Message;
+                return false;
+            }
+            catch
+            {
+                MensajeError = "Ocurrió un problema al registrar la cuenta. Intenta nuevamente.";
+                return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public void Logout()
+        {
+            ExecuteLogout();
+        }
+
+        private bool CanLogin()
+        {
+            return !IsBusy && !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password);
+        }
+
+        private async Task ExecuteLoginAsync()
+        {
+            await LoginAsync(Email, Password);
+        }
+
+        private void ExecuteLogout()
+        {
+            _sessionService.CerrarSesion();
+            UsuarioActual = null;
+            IdToken = string.Empty;
+            Email = string.Empty;
+            Password = string.Empty;
+            MensajeError = string.Empty;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

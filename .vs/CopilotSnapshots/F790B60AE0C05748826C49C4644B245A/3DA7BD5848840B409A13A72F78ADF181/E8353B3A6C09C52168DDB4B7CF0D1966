@@ -1,0 +1,17 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class HomePage : ContentPage
+{
+    public HomePage()
+    {
+        InitializeComponent();
+        BindingContext = new HomeViewModel();
+    }
+
+    private async void OnAgendarAhoraClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new AgendarCitaPage());
+    }
+}

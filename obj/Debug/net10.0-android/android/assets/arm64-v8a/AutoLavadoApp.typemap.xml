@@ -1,0 +1,10 @@
+<api type="debug" assembly-name="AutoLavadoApp" mvid="e9585fef2a3c4ea89346973a4d3902db">
+  <java-to-managed>
+    <entry java-name="crc646b4a0b9abbbf07e2/MainActivity" managed-name="AutoLavadoApp.MainActivity, AutoLavadoApp" managed-type-token-id="33554467" />
+    <entry java-name="crc646b4a0b9abbbf07e2/MainApplication" managed-name="AutoLavadoApp.MainApplication, AutoLavadoApp" managed-type-token-id="33554468" />
+  </java-to-managed>
+  <managed-to-java>
+    <entry java-name="crc646b4a0b9abbbf07e2/MainActivity" managed-name="AutoLavadoApp.MainActivity, AutoLavadoApp" managed-type-token-id="33554467" />
+    <entry java-name="crc646b4a0b9abbbf07e2/MainApplication" managed-name="AutoLavadoApp.MainApplication, AutoLavadoApp" managed-type-token-id="33554468" />
+  </managed-to-java>
+</api>

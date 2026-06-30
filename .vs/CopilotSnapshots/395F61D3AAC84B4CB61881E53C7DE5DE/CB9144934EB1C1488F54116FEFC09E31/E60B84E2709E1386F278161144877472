@@ -1,0 +1,142 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class HomeViewModel : INotifyPropertyChanged
+    {
+        private readonly SessionService _sessionService;
+        private readonly UsuarioService _usuarioService;
+        private readonly ServicioService _servicioService;
+        private string _nombreUsuario = string.Empty;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public HomeViewModel(SessionService sessionService, UsuarioService usuarioService, ServicioService servicioService)
+        {
+            _sessionService = sessionService;
+            _usuarioService = usuarioService;
+            _servicioService = servicioService;
+
+            Servicios = new ObservableCollection<ServicioItem>();
+
+            ProximaCita = new ProximaCitaItem
+            {
+                Fecha = DateTime.Today.AddDays(2),
+                Hora = "10:30 AM",
+                Servicio = "Lavado premium",
+                Estado = "Confirmada"
+            };
+
+            NombreUsuario = "Cliente";
+        }
+
+        public string NombreUsuario
+        {
+            get => _nombreUsuario;
+            set => SetProperty(ref _nombreUsuario, value);
+        }
+
+        public string MensajeSaludo => $"Hola, {NombreUsuario}";
+
+        public ObservableCollection<ServicioItem> Servicios { get; }
+
+        public ProximaCitaItem ProximaCita { get; }
+
+        public async Task CargarUsuarioAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            var idToken = await _sessionService.ObtenerTokenAsync();
+
+            await CargarServiciosAsync();
+
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                NombreUsuario = "Cliente";
+                return;
+            }
+
+            var usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(uid, idToken);
+            if (usuario == null)
+            {
+                NombreUsuario = "Cliente";
+                return;
+            }
+
+            var nombreCompleto = $"{usuario.Nombre} {usuario.ApellidoPaterno}".Trim();
+            NombreUsuario = string.IsNullOrWhiteSpace(nombreCompleto) ? "Cliente" : nombreCompleto;
+        }
+
+        private async Task CargarServiciosAsync()
+        {
+            var servicios = await _servicioService.ObtenerServiciosActivosAsync();
+            Servicios.Clear();
+
+            foreach (var servicio in servicios.OrderBy(x => x.Precio))
+            {
+                Servicios.Add(new ServicioItem
+                {
+                    Icono = string.IsNullOrWhiteSpace(servicio.Imagen) ? "\uf043" : servicio.Imagen,
+                    Nombre = servicio.Nombre,
+                    Descripcion = servicio.Descripcion,
+                    Precio = $"${servicio.Precio:N2}",
+                    Duracion = $"{servicio.DuracionMinutos} min",
+                    EsImagenRemota = !string.IsNullOrWhiteSpace(servicio.Imagen)
+                        && (servicio.Imagen.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                        || servicio.Imagen.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                });
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+
+            if (propertyName == nameof(NombreUsuario))
+            {
+                OnPropertyChanged(nameof(MensajeSaludo));
+            }
+
+            return true;
+        }
+    }
+
+    public class ServicioItem
+    {
+        public string Icono { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public string Precio { get; set; } = string.Empty;
+        public string Duracion { get; set; } = string.Empty;
+        public bool EsImagenRemota { get; set; }
+        public bool MostrarIcono => !EsImagenRemota;
+        public bool MostrarImagen => EsImagenRemota;
+    }
+
+    public class ProximaCitaItem
+    {
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string EstadoColor => Estado == "Confirmada" ? "#16A34A" : "#F59E0B";
+    }
+}

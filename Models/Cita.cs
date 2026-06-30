@@ -1,0 +1,142 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace AutoLavadoApp.Models
+{
+    public static class EstadosCita
+    {
+        public const string Pendiente = "pendiente";
+        public const string Aceptada = "aceptada";
+        public const string EmpleadoAsignado = "empleado_asignado";
+        public const string Asignada = EmpleadoAsignado;
+        public const string EnCamino = "en_camino";
+        public const string VehiculoRecogido = "vehiculo_recogido";
+        public const string Lavando = "lavando";
+        public const string EnLavado = Lavando;
+        public const string Confirmada = "confirmada";
+        public const string EnProceso = "en_proceso";
+        public const string Finalizada = "finalizada";
+        public const string Entregado = "entregado";
+        public const string Cancelada = "cancelada";
+    }
+
+    public static class TiposServicioCita
+    {
+        public const string Sucursal = "sucursal";
+        public const string Domicilio = "domicilio";
+    }
+
+    public class Cita
+    {
+        public string Id { get; set; } = string.Empty;
+        public string ClienteId { get; set; } = string.Empty;
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string ClienteCorreo { get; set; } = string.Empty;
+
+        public string UsuarioId { get; set; } = string.Empty;
+        public string VehiculoId { get; set; } = string.Empty;
+        public string ServicioId { get; set; } = string.Empty;
+        public string ServicioNombre { get; set; } = string.Empty;
+        public decimal Precio { get; set; }
+        public string EmpleadoId { get; set; } = string.Empty;
+        public string EmpleadoNombre { get; set; } = string.Empty;
+
+        public DateTime Fecha { get; set; } = DateTime.Now;
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = EstadosCita.Pendiente;
+        public string Observaciones { get; set; } = string.Empty;
+
+        public string Modalidad { get; set; } = TiposServicioCita.Sucursal;
+        public string TipoServicio
+        {
+            get => Modalidad;
+            set => Modalidad = value;
+        }
+        public string Direccion { get; set; } = string.Empty;
+        public string Referencias { get; set; } = string.Empty;
+        public string Ciudad { get; set; } = string.Empty;
+        public string CodigoPostal { get; set; } = string.Empty;
+        public string HorarioDisponible { get; set; } = string.Empty;
+        public string NotasAdicionales { get; set; } = string.Empty;
+        public double? Latitud { get; set; }
+        public double? Longitud { get; set; }
+        public string VehiculoNombre { get; set; } = string.Empty;
+        public string Vehiculo
+        {
+            get => VehiculoNombre;
+            set => VehiculoNombre = value;
+        }
+        public string Placas { get; set; } = string.Empty;
+        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+        // Pago
+        public bool Pagado { get; set; } = false;
+        public string MetodoPago { get; set; } = string.Empty;
+
+        public string Servicio => string.IsNullOrWhiteSpace(ServicioNombre) ? ServicioId : ServicioNombre;
+        public string Usuario => string.IsNullOrWhiteSpace(ClienteId) ? UsuarioId : ClienteId;
+
+        public bool EsDomicilio => string.Equals(Modalidad, TiposServicioCita.Domicilio, StringComparison.OrdinalIgnoreCase);
+
+        public string EstadoTexto => Estado switch
+        {
+            EstadosCita.Pendiente => "Pendiente",
+            EstadosCita.Aceptada => "Aceptada",
+            EstadosCita.EmpleadoAsignado => "Empleado asignado",
+            EstadosCita.EnCamino => "Empleado en camino",
+            EstadosCita.VehiculoRecogido => "Vehículo recogido",
+            EstadosCita.Lavando => "Lavando",
+            EstadosCita.Finalizada => "Finalizada",
+            EstadosCita.Entregado => "Entregado",
+            EstadosCita.Cancelada => "Cancelada",
+            _ => Estado
+        };
+
+        public bool TrackAsignado =>
+            Estado is EstadosCita.EmpleadoAsignado or EstadosCita.EnCamino or EstadosCita.VehiculoRecogido or EstadosCita.Lavando or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackEnCamino =>
+            Estado is EstadosCita.EnCamino or EstadosCita.VehiculoRecogido or EstadosCita.Lavando or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackRecogido =>
+            Estado is EstadosCita.VehiculoRecogido or EstadosCita.Lavando or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackLavado =>
+            Estado is EstadosCita.Lavando or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackFinalizado =>
+            Estado is EstadosCita.Finalizada or EstadosCita.Entregado;
+
+        public string TrackAsignadoColor => TrackAsignado ? "#16A34A" : "#CBD5E1";
+        public string TrackEnCaminoColor => TrackEnCamino ? "#16A34A" : "#CBD5E1";
+        public string TrackRecogidoColor => TrackRecogido ? "#16A34A" : "#CBD5E1";
+        public string TrackLavadoColor => TrackLavado ? "#16A34A" : "#CBD5E1";
+        public string TrackFinalizadoColor => TrackFinalizado ? "#16A34A" : "#CBD5E1";
+
+        public string EstadoColor => Estado switch
+        {
+            EstadosCita.Pendiente => "#F59E0B",
+            EstadosCita.Aceptada => "#2563EB",
+            EstadosCita.EmpleadoAsignado => "#2563EB",
+            EstadosCita.EnCamino => "#7C3AED",
+            EstadosCita.VehiculoRecogido => "#4338CA",
+            EstadosCita.Lavando => "#6D28D9",
+            EstadosCita.Finalizada => "#16A34A",
+            EstadosCita.Entregado => "#15803D",
+            EstadosCita.Cancelada => "#B91C1C",
+            _ => "#64748B"
+        };
+
+        public string EstadoFondoColor => Estado switch
+        {
+            EstadosCita.Pendiente => "#FEF3C7",
+            EstadosCita.Aceptada => "#DBEAFE",
+            EstadosCita.EmpleadoAsignado => "#DBEAFE",
+            EstadosCita.EnCamino => "#EDE9FE",
+            EstadosCita.VehiculoRecogido => "#EEF2FF",
+            EstadosCita.Lavando => "#EDE9FE",
+            EstadosCita.Finalizada => "#DCFCE7",
+            EstadosCita.Entregado => "#DCFCE7",
+            EstadosCita.Cancelada => "#FEE2E2",
+            _ => "#E2E8F0"
+        };
+
+        public bool PuedeCancelar => Estado is EstadosCita.Pendiente or EstadosCita.Aceptada or EstadosCita.EmpleadoAsignado;
+    }
+}

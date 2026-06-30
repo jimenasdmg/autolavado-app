@@ -1,0 +1,76 @@
+﻿using AutoLavadoApp.ViewModels.Admin;
+using System.Diagnostics;
+
+namespace AutoLavadoApp;
+
+public partial class AdminMensajesPage : ContentPage
+{
+    private readonly AdminMensajesViewModel _viewModel;
+
+    public AdminMensajesPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AdminMensajesViewModel>()
+            ?? throw new InvalidOperationException("AdminMensajesViewModel no está registrado en DI.");
+
+        _viewModel.MostrarAlertaAsync = async (titulo, mensaje, cancelar) => 
+        {
+            await DisplayAlert(titulo, mensaje, cancelar);
+            return true;
+        };
+
+        BindingContext = _viewModel;
+    }
+
+    public AdminMensajesPage(string empleadoUid, string empleadoNombre) : this()
+    {
+        _viewModel.ConfigurarEmpleadoObjetivo(empleadoUid, empleadoNombre);
+    }
+
+    private async void OnEnviarClicked(object sender, EventArgs e)
+    {
+        if (BindingContext is not AdminMensajesViewModel vm) return;
+        var ok = await vm.EnviarMensajeAsync();
+        Debug.WriteLine($"[MENSAJES][ADMIN][UI][SEND] ok={ok}");
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        if (BindingContext is AdminMensajesViewModel vm)
+        {
+            await vm.RefrescarMensajesAsync();
+        }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        if (BindingContext is AdminMensajesViewModel vm)
+        {
+            vm.DetenerPolling();
+        }
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(AdminMensajesViewModel.ScrollToLastRequest))
+        {
+            return;
+        }
+
+        var last = _viewModel.ScrollToLastRequest;
+        if (last == null)
+        {
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() => MensajesCollectionView.ScrollTo(last, position: ScrollToPosition.End, animate: true));
+    }
+}

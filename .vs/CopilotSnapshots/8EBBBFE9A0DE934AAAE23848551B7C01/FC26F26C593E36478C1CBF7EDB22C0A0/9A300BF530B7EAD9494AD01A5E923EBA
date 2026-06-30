@@ -1,0 +1,236 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp.ViewModels;
+
+public class AgendarCitaViewModel : BaseViewModel
+{
+    private readonly CitaService _citaService;
+    private readonly ServicioService _servicioService;
+    private readonly VehiculoService _vehiculoService;
+    private readonly SessionService _sessionService;
+
+    public ObservableCollection<Servicio> Servicios { get; } = new();
+    public ObservableCollection<Vehiculo> Vehiculos { get; } = new();
+
+    private Servicio? _servicioSeleccionado;
+    public Servicio? ServicioSeleccionado
+    {
+        get => _servicioSeleccionado;
+        set => SetProperty(ref _servicioSeleccionado, value);
+    }
+
+    private Vehiculo? _vehiculoSeleccionado;
+    public Vehiculo? VehiculoSeleccionado
+    {
+        get => _vehiculoSeleccionado;
+        set => SetProperty(ref _vehiculoSeleccionado, value);
+    }
+
+    private DateTime _fecha = DateTime.Today;
+    public DateTime Fecha
+    {
+        get => _fecha;
+        set => SetProperty(ref _fecha, value);
+    }
+
+    private string _hora = "09:00";
+    public string Hora
+    {
+        get => _hora;
+        set => SetProperty(ref _hora, value);
+    }
+
+    private string _observaciones = string.Empty;
+    public string Observaciones
+    {
+        get => _observaciones;
+        set => SetProperty(ref _observaciones, value);
+    }
+
+    public ICommand CargarDatosCommand { get; }
+    public ICommand AgendarCommand { get; }
+    rules_version = '2';
+    service cloud.firestore
+    {
+        match /databases/{ database}/documents
+        {
+            match /{ document = **}
+            {
+                allow read, write: if request.auth != null;
+            }
+        }
+    }
+    public AgendarCitaViewModel(CitaService citaService, ServicioService servicioService, VehiculoService vehiculoService, SessionService sessionService)
+    {
+        _citaService = citaService ?? throw new ArgumentNullException(nameof(citaService));
+        _servicioService = servicioService ?? throw new ArgumentNullException(nameof(servicioService));
+        _vehiculoService = vehiculoService ?? throw new ArgumentNullException(nameof(vehiculoService));
+        _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
+
+        CargarDatosCommand = new Command(async () => await CargarDatosAsync());
+        AgendarCommand = new Command(async () => await AgendarAsync());
+    }
+
+    public async Task CargarDatosAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+
+            if (Shell.Current is null)
+            {
+                throw new NullReferenceException("Shell.Current es null en CargarDatosAsync.");
+            }
+
+            Servicios.Clear();
+            Vehiculos.Clear();
+
+            var uid = _sessionService?.ObtenerUid();
+            var token = await _sessionService.ObtenerTokenAsync();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                await Shell.Current.DisplayAlertAsync("Sesión", "No se encontró sesión activa.", "OK");
+                return;
+            }
+
+            if (SessionService.TokenExpirado(token))
+            {
+                await Shell.Current.DisplayAlertAsync("Sesión", "Tu sesión expiró. Inicia sesión nuevamente.", "OK");
+                return;
+            }
+
+            var servicios = await _servicioService.ObtenerServiciosActivosAsync();
+            if (servicios is null)
+            {
+                throw new NullReferenceException("_servicioService.ObtenerServiciosActivosAsync() devolvió null.");
+            }
+
+            foreach (var s in servicios)
+            {
+                Servicios.Add(s);
+            }
+
+            var vehiculos = await _vehiculoService.ObtenerVehiculosPorUsuarioAsync(uid, token);
+            if (vehiculos is null)
+            {
+                throw new NullReferenceException("_vehiculoService.ObtenerVehiculosPorUsuarioAsync(uid) devolvió null.");
+            }
+
+            foreach (var v in vehiculos)
+            {
+                Vehiculos.Add(v);
+            }
+
+            if (ServicioSeleccionado is null && Servicios.Count > 0)
+            {
+                ServicioSeleccionado = Servicios[0];
+            }
+
+            if (VehiculoSeleccionado is null && Vehiculos.Count > 0)
+            {
+                VehiculoSeleccionado = Vehiculos[0];
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Shell.Current is not null)
+            {
+                await Shell.Current.DisplayAlertAsync("Error", ex.ToString(), "OK");
+            }
+
+            throw;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task AgendarAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+
+            if (Shell.Current is null)
+            {
+                throw new NullReferenceException("Shell.Current es null en AgendarAsync.");
+            }
+
+            var uid = _sessionService?.ObtenerUid();
+            var token = await _sessionService.ObtenerTokenAsync();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                await Shell.Current.DisplayAlertAsync("Sesión", "No se encontró sesión activa.", "OK");
+                return;
+            }
+
+            if (SessionService.TokenExpirado(token))
+            {
+                await Shell.Current.DisplayAlertAsync("Sesión", "Tu sesión expiró. Inicia sesión nuevamente.", "OK");
+                return;
+            }
+
+            if (ServicioSeleccionado is null)
+            {
+                await Shell.Current.DisplayAlertAsync("Validación", "Selecciona un servicio.", "OK");
+                return;
+            }
+
+            if (VehiculoSeleccionado is null)
+            {
+                await Shell.Current.DisplayAlertAsync("Validación", "Selecciona un vehículo.", "OK");
+                return;
+            }
+
+            if (Fecha.Date < DateTime.Today)
+            {
+                await Shell.Current.DisplayAlertAsync("Validación", "La fecha no puede ser anterior a hoy.", "OK");
+                return;
+            }
+
+            var cita = new Cita
+            {
+                UsuarioId = uid,
+                VehiculoId = VehiculoSeleccionado.Id,
+                ServicioId = ServicioSeleccionado.Id,
+                Fecha = Fecha.Date,
+                Hora = Hora,
+                Estado = EstadosCita.Pendiente,
+                Observaciones = Observaciones
+            };
+
+            var ok = await _citaService.CrearCitaAsync(cita, token);
+            if (!ok)
+            {
+                await Shell.Current.DisplayAlertAsync("Error", "No se pudo agendar la cita.", "OK");
+                return;
+            }
+
+            Observaciones = string.Empty;
+            await Shell.Current.DisplayAlertAsync("Éxito", "Cita agendada correctamente.", "OK");
+        }
+        catch (Exception ex)
+        {
+            if (Shell.Current is not null)
+            {
+                await Shell.Current.DisplayAlertAsync("Error", ex.ToString(), "OK");
+            }
+
+            throw;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}

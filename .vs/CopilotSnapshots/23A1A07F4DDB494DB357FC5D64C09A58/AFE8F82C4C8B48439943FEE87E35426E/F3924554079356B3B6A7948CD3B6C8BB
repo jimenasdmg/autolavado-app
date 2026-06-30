@@ -1,0 +1,178 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class VehiculoService : FirestoreBaseService
+    {
+        private const string Collection = "vehiculos";
+        private const string FirebaseProjectId = "autolavadoapp-f9a62";
+        private readonly HttpClient _http;
+
+        public VehiculoService(HttpClient httpClient)
+            : base(httpClient)
+        {
+            _http = httpClient;
+        }
+
+        public async Task<List<Vehiculo>> ObtenerVehiculosPorUsuarioAsync(string usuarioId, string? idToken = null)
+        {
+            var result = new List<Vehiculo>();
+            if (string.IsNullOrWhiteSpace(usuarioId) || string.IsNullOrWhiteSpace(idToken)) return result;
+
+            var query = new
+            {
+                structuredQuery = new
+                {
+                    from = new[] { new { collectionId = Collection } },
+                    where = new
+                    {
+                        fieldFilter = new
+                        {
+                            field = new { fieldPath = "usuarioId" },
+                            op = "EQUAL",
+                            value = new { stringValue = usuarioId }
+                        }
+                    }
+                }
+            };
+
+            var rows = await RunQueryAsync(query, idToken);
+            foreach (var row in rows)
+            {
+                var parsed = ParseVehiculoDesdeQuery(row);
+                if (parsed is null) continue;
+                if (parsed.UsuarioId == usuarioId || parsed.ClienteId == usuarioId) result.Add(parsed);
+            }
+
+            return result;
+        }
+
+        public async Task<bool> GuardarVehiculoAsync(Vehiculo vehiculo, string? idToken = null)
+        {
+            if (string.IsNullOrWhiteSpace(vehiculo.Id))
+            {
+                vehiculo.Id = Guid.NewGuid().ToString("N");
+            }
+
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["id"] = new { stringValue = vehiculo.Id },
+                    ["usuarioId"] = new { stringValue = vehiculo.UsuarioId ?? string.Empty },
+                    ["clienteId"] = new { stringValue = vehiculo.ClienteId ?? string.Empty },
+                    ["placa"] = new { stringValue = vehiculo.Placa ?? string.Empty },
+                    ["placas"] = new { stringValue = vehiculo.Placas ?? string.Empty },
+                    ["marca"] = new { stringValue = vehiculo.Marca ?? string.Empty },
+                    ["modelo"] = new { stringValue = vehiculo.Modelo ?? string.Empty },
+                    ["color"] = new { stringValue = vehiculo.Color ?? string.Empty },
+                    ["anio"] = new { integerValue = vehiculo.Anio },
+                    ["tipo"] = new { stringValue = vehiculo.Tipo ?? string.Empty },
+                    ["nombreVisual"] = new { stringValue = vehiculo.NombreVisual }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, vehiculo.Id, idToken);
+        }
+
+        public async Task<bool> EliminarVehiculoAsync(string vehiculoId, string? idToken = null)
+        {
+            if (string.IsNullOrWhiteSpace(idToken)) return false;
+
+            using var request = new HttpRequestMessage(HttpMethod.Delete, BuildDocumentUrl(Collection, vehiculoId));
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", idToken);
+            var response = await _http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+
+        private static Vehiculo? ParseVehiculo(JsonElement doc)
+        {
+            if (!doc.TryGetProperty("fields", out var f)) return null;
+
+            var name = doc.TryGetProperty("name", out var n) ? n.GetString() : null;
+            var id = ReadString(f, "id");
+            if (string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+            {
+                id = name.Split('/').Last();
+            }
+
+            return new Vehiculo
+            {
+                Id = id ?? string.Empty,
+                UsuarioId = ReadString(f, "usuarioId") ?? string.Empty,
+                ClienteId = ReadString(f, "clienteId") ?? string.Empty,
+                Placa = ReadString(f, "placa") ?? ReadString(f, "placas") ?? string.Empty,
+                Marca = ReadString(f, "marca") ?? string.Empty,
+                Modelo = ReadString(f, "modelo") ?? string.Empty,
+                Color = ReadString(f, "color") ?? string.Empty,
+                Anio = ReadInt(f, "anio"),
+                Tipo = ReadString(f, "tipo") ?? string.Empty
+            };
+        }
+
+        private static Vehiculo? ParseVehiculoDesdeQuery(JsonElement row)
+        {
+            if (!row.TryGetProperty("document", out var document))
+            {
+                return null;
+            }
+
+            return ParseVehiculo(document);
+        }
+
+        private async Task<List<JsonElement>> RunQueryAsync(object queryBody, string idToken)
+        {
+            var url = $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents:runQuery";
+            var json = JsonSerializer.Serialize(queryBody);
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", idToken);
+            req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var res = await _http.SendAsync(req);
+            var payload = await res.Content.ReadAsStringAsync();
+            if (!res.IsSuccessStatusCode)
+            {
+                return new List<JsonElement>();
+            }
+
+            using var doc = JsonDocument.Parse(payload);
+            var result = new List<JsonElement>();
+
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                result.Add(item.Clone());
+            }
+
+            return result;
+        }
+
+        private static string? ReadString(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+            return null;
+        }
+
+        private static int ReadInt(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("integerValue", out var i) && int.TryParse(i.GetString(), out var n)) return n;
+            return 0;
+        }
+    }
+}

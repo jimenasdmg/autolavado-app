@@ -1,0 +1,9 @@
+﻿namespace AutoLavadoApp.ViewModels;
+
+/// <summary>
+/// Compatibilidad temporal para referencias antiguas a `Autenticacion`.
+/// Redirige al ViewModel actual `AutenticacionViewModel`.
+/// </summary>
+public class Autenticacion : AutenticacionViewModel
+{
+}

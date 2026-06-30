@@ -1,0 +1,255 @@
+﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class AgregarVehiculoViewModel : INotifyPropertyChanged
+    {
+        private readonly VehiculoService _vehiculoService;
+        private readonly SessionService _sessionService;
+
+        private string _marca = string.Empty;
+        private string _modelo = string.Empty;
+        private string _anio = string.Empty;
+        private string _color = string.Empty;
+        private string _placas = string.Empty;
+        private string _tipoSeleccionado = string.Empty;
+        private string _errorMessage = string.Empty;
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public AgregarVehiculoViewModel(VehiculoService vehiculoService, SessionService sessionService)
+        {
+            _vehiculoService = vehiculoService;
+            _sessionService = sessionService;
+
+            TiposVehiculo = new[]
+            {
+                "Sedán",
+                "SUV",
+                "Pickup",
+                "Moto",
+                "Camioneta"
+            };
+
+            GuardarVehiculoCommand = new Command(async () => await GuardarVehiculoAsync(), () => !IsBusy);
+        }
+
+        public ICommand GuardarVehiculoCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+        public Func<Task>? NavegarAMisVehiculosAsync { get; set; }
+
+        public string[] TiposVehiculo { get; }
+
+        public string Marca
+        {
+            get => _marca;
+            set => SetProperty(ref _marca, value);
+        }
+
+        public string Modelo
+        {
+            get => _modelo;
+            set => SetProperty(ref _modelo, value);
+        }
+
+        public string Anio
+        {
+            get => _anio;
+            set => SetProperty(ref _anio, value);
+        }
+
+        public string Color
+        {
+            get => _color;
+            set => SetProperty(ref _color, value);
+        }
+
+        public string Placas
+        {
+            get => _placas;
+            set => SetProperty(ref _placas, value);
+        }
+
+        public string TipoSeleccionado
+        {
+            get => _tipoSeleccionado;
+            set => SetProperty(ref _tipoSeleccionado, value);
+        }
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            private set
+            {
+                if (SetProperty(ref _errorMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    OnPropertyChanged(nameof(CanInteract));
+                    ((Command)GuardarVehiculoCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public bool CanInteract => !IsBusy;
+
+        private async Task GuardarVehiculoAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            ErrorMessage = string.Empty;
+
+            if (!ValidarCampos())
+            {
+                return;
+            }
+
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Sesión", "Debes iniciar sesión para agregar un vehículo.", "OK");
+                }
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var idToken = await _sessionService.ObtenerTokenAsync();
+                _ = int.TryParse(Anio, out var anio);
+
+                var vehiculo = new Vehiculo
+                {
+                    UsuarioId = uid,
+                    Marca = Marca.Trim(),
+                    Modelo = Modelo.Trim(),
+                    Anio = anio,
+                    Color = Color.Trim(),
+                    Placas = Placas.Trim().ToUpperInvariant(),
+                    Tipo = TipoSeleccionado.Trim()
+                };
+
+                if (SessionService.TokenExpirado(idToken))
+                {
+                    ErrorMessage = "La sesión expiró. Inicia sesión nuevamente.";
+                    return;
+                }
+
+                var ok = await _vehiculoService.GuardarVehiculoAsync(vehiculo, idToken);
+                if (!ok)
+                {
+                    ErrorMessage = "No fue posible guardar el vehículo en Firestore.";
+                    return;
+                }
+
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("✅ Vehículo guardado", "Tu vehículo se registró correctamente en BRIZZO.", "Continuar");
+                }
+
+                if (NavegarAMisVehiculosAsync != null)
+                {
+                    await NavegarAMisVehiculosAsync();
+                }
+            }
+            catch (FirebaseServiceException ex)
+            {
+                ErrorMessage = ex.Message;
+            }
+            catch
+            {
+                ErrorMessage = "No fue posible guardar el vehículo.";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private bool ValidarCampos()
+        {
+            if (string.IsNullOrWhiteSpace(Marca))
+            {
+                ErrorMessage = "Ingresa la marca del vehículo.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Modelo))
+            {
+                ErrorMessage = "Ingresa el modelo del vehículo.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Color))
+            {
+                ErrorMessage = "Ingresa el color del vehículo.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Anio) || !int.TryParse(Anio, out var anio) || anio < 1950 || anio > DateTime.Now.Year + 1)
+            {
+                ErrorMessage = "Ingresa un año válido en formato numérico.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Placas))
+            {
+                ErrorMessage = "Ingresa las placas del vehículo.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(TipoSeleccionado))
+            {
+                ErrorMessage = "Selecciona el tipo de vehículo.";
+                return false;
+            }
+
+            return true;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

@@ -1,0 +1,773 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Linq;
+using System.Windows.Input;
+using System.Diagnostics;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp.ViewModels;
+
+public class AgendarCitaViewModel : BaseViewModel
+{
+    private readonly CitaService _citaService;
+    private readonly ServicioService _servicioService;
+    private readonly VehiculoService _vehiculoService;
+    private readonly SessionService _sessionService;
+    private readonly NotificacionService _notificacionService;
+    private readonly UsuarioService _usuarioService;
+
+    private static readonly string[] HorasBase =
+    {
+        "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
+    };
+
+    public ObservableCollection<ServicioAgendaItem> Servicios { get; } = new();
+    public ObservableCollection<Vehiculo> Vehiculos { get; } = new();
+    public ObservableCollection<CalendarDayItem> DiasCalendario { get; } = new();
+    public ObservableCollection<HoraDisponibleItem> HorasDisponibles { get; } = new();
+    public ObservableCollection<string> MetodosPago { get; } = new();
+
+    private readonly List<Cita> _citasCache = new();
+    private string _uid = string.Empty;
+    private string _token = string.Empty;
+    private DateTime _mesActual = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    private ServicioAgendaItem? _servicioSeleccionado;
+    public ServicioAgendaItem? ServicioSeleccionado
+    {
+        get => _servicioSeleccionado;
+        set
+        {
+            if (SetProperty(ref _servicioSeleccionado, value))
+            {
+                ActualizarSeleccionServicio(value);
+                OnPropertyChanged(nameof(ResumenServicio));
+                OnPropertyChanged(nameof(PuedeConfirmar));
+                OnPropertyChanged(nameof(TotalPrecioTexto));
+            }
+
+    public decimal TotalPrecio => (ServicioSeleccionado?.Precio ?? 0m) + CargoExtraActual;
+
+    public string TotalPrecioTexto => $"${TotalPrecio:N2}";
+        }
+    }
+
+    private Vehiculo? _vehiculoSeleccionado;
+    public Vehiculo? VehiculoSeleccionado
+    {
+        get => _vehiculoSeleccionado;
+        set
+        {
+            if (SetProperty(ref _vehiculoSeleccionado, value))
+            {
+                OnPropertyChanged(nameof(PuedeConfirmar));
+            }
+        }
+    }
+
+    private DateTime _fechaSeleccionada = DateTime.Today;
+    public DateTime FechaSeleccionada
+    {
+        get => _fechaSeleccionada;
+        set
+        {
+            var date = value.Date;
+            if (SetProperty(ref _fechaSeleccionada, date))
+            {
+                _ = RefrescarCitasPorFechaAsync(date);
+                OnPropertyChanged(nameof(ResumenFecha));
+                OnPropertyChanged(nameof(PuedeConfirmar));
+            }
+        }
+    }
+
+    private string _hora = string.Empty;
+    public string Hora
+    {
+        get => _hora;
+        set
+        {
+            if (SetProperty(ref _hora, value))
+            {
+                ActualizarSeleccionHora(value);
+                OnPropertyChanged(nameof(ResumenHora));
+                OnPropertyChanged(nameof(PuedeConfirmar));
+            }
+        }
+    }
+
+    private string _observaciones = string.Empty;
+    public string Observaciones
+    {
+        get => _observaciones;
+        set => SetProperty(ref _observaciones, value);
+    }
+
+    private string _metodoPagoSeleccionado = string.Empty;
+    public string MetodoPagoSeleccionado
+    {
+        get => _metodoPagoSeleccionado;
+        set => SetProperty(ref _metodoPagoSeleccionado, value);
+    }
+
+    private string _tipoServicio = TiposServicioCita.Sucursal;
+    public string TipoServicio
+    {
+        get => _tipoServicio;
+        set
+        {
+            if (SetProperty(ref _tipoServicio, value))
+            {
+                OnPropertyChanged(nameof(EsSucursal));
+                OnPropertyChanged(nameof(EsRecoleccion));
+                OnPropertyChanged(nameof(FondoSucursal));
+                OnPropertyChanged(nameof(BordeSucursal));
+                OnPropertyChanged(nameof(TextoSucursal));
+                OnPropertyChanged(nameof(FondoDomicilio));
+                OnPropertyChanged(nameof(BordeDomicilio));
+                OnPropertyChanged(nameof(TextoDomicilio));
+                OnPropertyChanged(nameof(PuedeConfirmar));
+            }
+        }
+    }
+
+    public bool EsSucursal => string.Equals(TipoServicio, TiposServicioCita.Sucursal, StringComparison.OrdinalIgnoreCase);
+    public bool EsRecoleccion => string.Equals(TipoServicio, TiposServicioCita.Domicilio, StringComparison.OrdinalIgnoreCase);
+
+    private string _direccion = string.Empty;
+    public string Direccion
+    {
+        get => _direccion;
+        set { if (SetProperty(ref _direccion, value)) OnPropertyChanged(nameof(PuedeConfirmar)); }
+    }
+
+    private string _referencias = string.Empty;
+    public string Referencias { get => _referencias; set => SetProperty(ref _referencias, value); }
+
+    private string _codigoPostal = string.Empty;
+    public string CodigoPostal { get => _codigoPostal; set => SetProperty(ref _codigoPostal, value); }
+
+    private string _notasAdicionales = string.Empty;
+    public string NotasAdicionales { get => _notasAdicionales; set => SetProperty(ref _notasAdicionales, value); }
+
+    private string _errorMessage = string.Empty;
+    public string ErrorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            if (SetProperty(ref _errorMessage, value))
+            {
+                OnPropertyChanged(nameof(HasError));
+            }
+        }
+    }
+
+    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    public bool CanInteract => !IsBusy;
+
+    public string MesActualTexto => _mesActual.ToString("MMMM yyyy", new CultureInfo("es-MX"));
+    public string ResumenServicio => ServicioSeleccionado?.Nombre ?? "Sin servicio";
+    public string ResumenFecha => FechaSeleccionada.ToString("dddd dd 'de' MMMM", new CultureInfo("es-MX"));
+    public string ResumenHora => string.IsNullOrWhiteSpace(Hora) ? "Sin hora" : Hora;
+    public bool PuedeConfirmar =>
+        ServicioSeleccionado is not null
+        && VehiculoSeleccionado is not null
+        && !string.IsNullOrWhiteSpace(Hora)
+        && (EsSucursal || !string.IsNullOrWhiteSpace(Direccion));
+
+    public string FondoSucursal => EsSucursal ? "#DBEAFE" : "#F8FAFC";
+    public string BordeSucursal => EsSucursal ? "#2563EB" : "#E2E8F0";
+    public string TextoSucursal => EsSucursal ? "#1D4ED8" : "#475569";
+    public string FondoDomicilio => EsRecoleccion ? "#DBEAFE" : "#F8FAFC";
+    public string BordeDomicilio => EsRecoleccion ? "#2563EB" : "#E2E8F0";
+    public string TextoDomicilio => EsRecoleccion ? "#1D4ED8" : "#475569";
+
+    public ICommand CargarDatosCommand { get; }
+    public ICommand ConfirmarCitaCommand { get; }
+    public ICommand MesAnteriorCommand { get; }
+    public ICommand MesSiguienteCommand { get; }
+    public ICommand SeleccionarDiaCommand { get; }
+    public ICommand SeleccionarHoraCommand { get; }
+    public ICommand SeleccionarServicioCommand { get; }
+    public ICommand SeleccionarSucursalCommand { get; }
+    public ICommand SeleccionarDomicilioCommand { get; }
+
+    public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+    // Pregunta si el usuario desea entrega de vuelta en la misma ubicación (cargo extra)
+    public Func<Task<bool?>>? PreguntarEntregaDevueltaAsync { get; set; }
+    // Devuelve la opción seleccionada: "Pagar ahora", "Pagar en sucursal" o "Cancelar" (o null si no implementado)
+    public Func<Task<string?>>? PedirMetodoPagoAsync { get; set; }
+    // Callback invoked after a cita is successfully agendada (UI can navigate away)
+    public Func<Task>? OnCitaAgendadaAsync { get; set; }
+
+    private const decimal CargoExtraEntrega = 50m;
+    private bool _entregaDevueltaSeleccionada;
+    public bool EntregaDevueltaSeleccionada
+    {
+        get => _entregaDevueltaSeleccionada;
+        set
+        {
+            if (SetProperty(ref _entregaDevueltaSeleccionada, value))
+            {
+                OnPropertyChanged(nameof(CargoExtraActual));
+                OnPropertyChanged(nameof(ResumenServicio));
+            }
+        }
+    }
+
+    public decimal CargoExtraActual => EntregaDevueltaSeleccionada ? CargoExtraEntrega : 0m;
+
+    public AgendarCitaViewModel(CitaService citaService, ServicioService servicioService, VehiculoService vehiculoService, SessionService sessionService, NotificacionService notificacionService, UsuarioService usuarioService)
+    {
+        _citaService = citaService ?? throw new ArgumentNullException(nameof(citaService));
+        _servicioService = servicioService ?? throw new ArgumentNullException(nameof(servicioService));
+        _vehiculoService = vehiculoService ?? throw new ArgumentNullException(nameof(vehiculoService));
+        _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
+        _notificacionService = notificacionService ?? throw new ArgumentNullException(nameof(notificacionService));
+        _usuarioService = usuarioService ?? throw new ArgumentNullException(nameof(usuarioService));
+
+        CargarDatosCommand = new Command(async () => await CargarDatosAsync());
+        ConfirmarCitaCommand = new Command(async () => await AgendarAsync());
+        MesAnteriorCommand = new Command(() =>
+        {
+            _mesActual = _mesActual.AddMonths(-1);
+            OnPropertyChanged(nameof(MesActualTexto));
+            ConstruirCalendario();
+        });
+        MesSiguienteCommand = new Command(() =>
+        {
+            _mesActual = _mesActual.AddMonths(1);
+            OnPropertyChanged(nameof(MesActualTexto));
+            ConstruirCalendario();
+        });
+        SeleccionarDiaCommand = new Command<CalendarDayItem>(item =>
+        {
+            if (item is null || !item.EsHabilitado)
+            {
+                return;
+            }
+
+            FechaSeleccionada = item.Fecha;
+        });
+        SeleccionarHoraCommand = new Command<HoraDisponibleItem>(item =>
+        {
+            if (item is null || !item.Disponible)
+            {
+                return;
+            }
+
+            Hora = item.Hora;
+        });
+        SeleccionarServicioCommand = new Command<ServicioAgendaItem>(item => ServicioSeleccionado = item);
+        SeleccionarSucursalCommand = new Command(() => TipoServicio = TiposServicioCita.Sucursal);
+        SeleccionarDomicilioCommand = new Command(async () => await SeleccionarDomicilioAsync());
+    }
+
+    private async Task SeleccionarDomicilioAsync()
+    {
+        TipoServicio = TiposServicioCita.Domicilio;
+
+        // Preguntar al usuario si desea que también se entregue en la misma ubicación
+        try
+        {
+            var respuesta = PreguntarEntregaDevueltaAsync is not null ? await PreguntarEntregaDevueltaAsync() : null;
+            if (respuesta is true)
+            {
+                EntregaDevueltaSeleccionada = true;
+            }
+            else
+            {
+                EntregaDevueltaSeleccionada = false;
+            }
+        }
+        catch
+        {
+            EntregaDevueltaSeleccionada = false;
+        }
+    }
+
+    public async Task CargarDatosAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+            ErrorMessage = string.Empty;
+
+            Servicios.Clear();
+            Vehiculos.Clear();
+            _citasCache.Clear();
+
+            _uid = _sessionService.ObtenerUid();
+            _token = await _sessionService.ObtenerTokenAsync();
+            if (string.IsNullOrWhiteSpace(_uid))
+            {
+                ErrorMessage = "No se encontró sesión activa.";
+                await MostrarAlertaSeguraAsync("Sesión", ErrorMessage);
+                return;
+            }
+
+            if (SessionService.TokenExpirado(_token))
+            {
+                ErrorMessage = "Tu sesión expiró. Inicia sesión nuevamente.";
+                await MostrarAlertaSeguraAsync("Sesión", ErrorMessage);
+                return;
+            }
+
+            var servicios = await _servicioService.ObtenerServiciosActivosAsync(_token);
+            foreach (var s in servicios ?? Enumerable.Empty<Servicio>())
+            {
+                Servicios.Add(new ServicioAgendaItem(s));
+            }
+
+            var vehiculos = await _vehiculoService.ObtenerVehiculosPorUsuarioAsync(_uid, _token);
+            foreach (var v in vehiculos ?? Enumerable.Empty<Vehiculo>())
+            {
+                Vehiculos.Add(v);
+            }
+
+            await RefrescarCitasPorFechaAsync(FechaSeleccionada, actualizarCalendario: false);
+
+            // Inicializar métodos de pago (ejemplo básico)
+            MetodosPago.Clear();
+            MetodosPago.Add("Efectivo");
+            MetodosPago.Add("Tarjeta");
+            MetodosPago.Add("Transferencia");
+            MetodoPagoSeleccionado = MetodosPago.FirstOrDefault() ?? string.Empty;
+
+            if (ServicioSeleccionado is null && Servicios.Count > 0)
+            {
+                ServicioSeleccionado = Servicios[0];
+            }
+
+            if (VehiculoSeleccionado is null && Vehiculos.Count > 0)
+            {
+                VehiculoSeleccionado = Vehiculos[0];
+            }
+
+            _mesActual = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            FechaSeleccionada = DateTime.Today;
+            OnPropertyChanged(nameof(MesActualTexto));
+            await RefrescarCitasPorFechaAsync(FechaSeleccionada);
+
+            if (Vehiculos.Count == 0)
+            {
+                await MostrarAlertaSeguraAsync("Vehículos", "No tienes vehículos registrados. Agrega uno para poder agendar.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "No fue posible cargar los datos para agendar.";
+            await MostrarAlertaSeguraAsync("Error", ErrorMessage);
+            System.Diagnostics.Debug.WriteLine($"[AGENDAR][CARGAR][ERROR] {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            OnPropertyChanged(nameof(CanInteract));
+        }
+    }
+
+    public async Task AgendarAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+            ErrorMessage = string.Empty;
+
+            _uid = _sessionService.ObtenerUid();
+            _token = await _sessionService.ObtenerTokenAsync();
+            if (string.IsNullOrWhiteSpace(_uid))
+            {
+                await MostrarAlertaSeguraAsync("Sesión", "No se encontró sesión activa.");
+                return;
+            }
+
+            if (SessionService.TokenExpirado(_token))
+            {
+                await MostrarAlertaSeguraAsync("Sesión", "Tu sesión expiró. Inicia sesión nuevamente.");
+                return;
+            }
+
+            if (ServicioSeleccionado is null)
+            {
+                await MostrarAlertaSeguraAsync("Validación", "Selecciona un servicio.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(ServicioSeleccionado.Id))
+            {
+                await MostrarAlertaSeguraAsync("Validación", "El servicio seleccionado no es válido.");
+                return;
+            }
+
+            if (VehiculoSeleccionado is null)
+            {
+                await MostrarAlertaSeguraAsync("Validación", "Selecciona un vehículo.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(VehiculoSeleccionado.Id))
+            {
+                await MostrarAlertaSeguraAsync("Validación", "El vehículo seleccionado no es válido.");
+                return;
+            }
+
+            if (FechaSeleccionada.Date < DateTime.Today)
+            {
+                await MostrarAlertaSeguraAsync("Validación", "La fecha no puede ser anterior a hoy.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Hora))
+            {
+                await MostrarAlertaSeguraAsync("Validación", "Selecciona una hora disponible.");
+                return;
+            }
+
+            if (EsRecoleccion && string.IsNullOrWhiteSpace(Direccion))
+            {
+                await MostrarAlertaSeguraAsync("Validación", "Agrega una dirección para recolección a domicilio.");
+                return;
+            }
+
+            if (!EsHoraDisponible(FechaSeleccionada, Hora))
+            {
+                await MostrarAlertaSeguraAsync("Horario", "La hora seleccionada ya no está disponible.");
+                CargarHorasDisponibles();
+                return;
+            }
+
+            var cita = new Cita
+            {
+                ClienteId = _uid,
+                UsuarioId = _uid,
+                VehiculoId = VehiculoSeleccionado.Id,
+                ServicioId = ServicioSeleccionado.Id,
+                ServicioNombre = ServicioSeleccionado.Nombre,
+                Precio = ServicioSeleccionado.Precio,
+                Fecha = FechaSeleccionada.Date,
+                Hora = Hora,
+                Estado = EstadosCita.Pendiente,
+                Observaciones = Observaciones,
+                Modalidad = TipoServicio,
+                Direccion = Direccion,
+                Referencias = Referencias,
+                CodigoPostal = CodigoPostal,
+                NotasAdicionales = NotasAdicionales,
+                VehiculoNombre = $"{VehiculoSeleccionado.Marca} {VehiculoSeleccionado.Modelo}".Trim(),
+                Placas = VehiculoSeleccionado.Placa,
+                FechaCreacion = DateTime.UtcNow,
+                Ciudad = string.Empty,
+                HorarioDisponible = string.Empty,
+                Latitud = null,
+                Longitud = null
+            };
+
+            // Aplicar cargo extra si aplica
+            if (EntregaDevueltaSeleccionada)
+            {
+                cita.Precio += CargoExtraActual;
+                cita.NotasAdicionales = string.IsNullOrWhiteSpace(cita.NotasAdicionales)
+                    ? "Incluye entrega de vuelta (cargo extra)"
+                    : cita.NotasAdicionales + " | Incluye entrega de vuelta (cargo extra)";
+            }
+
+            // Asignar método de pago seleccionado
+            cita.MetodoPago = MetodoPagoSeleccionado ?? string.Empty;
+
+            var cliente = await _usuarioService.ObtenerUsuarioPorIdAsync(_uid, _token);
+            if (cliente is not null)
+            {
+                cita.ClienteNombre = $"{cliente.Nombre} {cliente.ApellidoPaterno}".Trim();
+                cita.ClienteCorreo = cliente.Correo;
+            }
+
+            var ok = await _citaService.CrearCitaAsync(cita, _token);
+            if (!ok)
+            {
+                await MostrarAlertaSeguraAsync("Error", "No se pudo agendar la cita.");
+                return;
+            }
+            // Solicitar al usuario si desea pagar ahora o en sucursal
+            try
+            {
+                string? opcion = null;
+                if (PedirMetodoPagoAsync is not null)
+                {
+                    opcion = await PedirMetodoPagoAsync();
+                }
+
+                if (string.Equals(opcion, "Pagar ahora", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Aquí deberías invocar la pasarela de pago real. Por ahora marcamos como pagado.
+                    var pagoOk = await _citaService.MarcarPagoAsync(cita.Id, true, cita.MetodoPago ?? "cliente_app", _token);
+                    Debug.WriteLine($"[AGENDAR][PAGO] citaId={cita.Id} pagoOk={pagoOk}");
+
+                    // Notificar a administrador y cliente
+                    await _notificacionService.CrearAsync(new Notificacion
+                    {
+                        UsuarioId = _uid,
+                        CitaId = cita.Id,
+                        Titulo = "Servicio pagado",
+                        Mensaje = "Tu servicio fue marcado como pagado.",
+                        Tipo = "pago_recibido",
+                        Fecha = DateTime.UtcNow,
+                        Leida = false
+                    }, _token);
+                }
+                else if (string.Equals(opcion, "Pagar en sucursal", StringComparison.OrdinalIgnoreCase))
+                {
+                    // No marcamos como pagado, solo registramos que se diferirá el pago en sucursal.
+                    Debug.WriteLine($"[AGENDAR][PAGO] pago diferido, metodo={cita.MetodoPago}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[AGENDAR][PAGO][ERROR] {ex}");
+            }
+
+            Debug.WriteLine($"[AGENDAR][CREATE] citaId={cita.Id}, cliente={cita.ClienteId}, servicio={cita.ServicioId}, vehiculo={cita.VehiculoId}, fecha={cita.Fecha:yyyy-MM-dd}, hora={cita.Hora}");
+
+            await _notificacionService.CrearAsync(new Notificacion
+            {
+                UsuarioId = _uid,
+                CitaId = cita.Id,
+                Titulo = "Cita creada",
+                Mensaje = EsRecoleccion
+                    ? "Tu cita con recolección a domicilio fue registrada."
+                    : "Tu cita en sucursal fue registrada correctamente.",
+                Tipo = "cita_creada",
+                Fecha = DateTime.UtcNow,
+                Leida = false
+            }, _token);
+
+            await RefrescarCitasPorFechaAsync(FechaSeleccionada);
+            Observaciones = string.Empty;
+            if (EsRecoleccion)
+            {
+                Direccion = string.Empty;
+                CodigoPostal = string.Empty;
+                Referencias = string.Empty;
+                NotasAdicionales = string.Empty;
+            }
+            await MostrarAlertaSeguraAsync("Éxito", "Cita agendada correctamente.");
+        }
+        catch (Exception ex)
+        {
+            await MostrarAlertaSeguraAsync("Error", "No fue posible agendar la cita.");
+            System.Diagnostics.Debug.WriteLine($"[AGENDAR][CONFIRMAR][ERROR] {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            OnPropertyChanged(nameof(CanInteract));
+        }
+    }
+
+    private void ConstruirCalendario()
+    {
+        DiasCalendario.Clear();
+
+        var primerDiaMes = new DateTime(_mesActual.Year, _mesActual.Month, 1);
+        var inicioGrilla = primerDiaMes.AddDays(-(int)primerDiaMes.DayOfWeek);
+
+        for (var i = 0; i < 42; i++)
+        {
+            var fecha = inicioGrilla.AddDays(i);
+            var esMesActual = fecha.Month == _mesActual.Month;
+            var esPasado = fecha.Date < DateTime.Today;
+            var seleccionado = fecha.Date == FechaSeleccionada.Date;
+            var disponible = esMesActual && !esPasado && TieneHorasDisponibles(fecha);
+
+            DiasCalendario.Add(new CalendarDayItem
+            {
+                Fecha = fecha,
+                Numero = fecha.Day,
+                EsMesActual = esMesActual,
+                EsHabilitado = esMesActual && !esPasado,
+                EsSeleccionado = seleccionado,
+                TieneDisponibilidad = disponible,
+                Fondo = seleccionado ? "#2563EB" : "Transparent",
+                Borde = seleccionado ? "#2563EB" : "#E2E8F0",
+                ColorTexto = seleccionado ? "White" : (esMesActual ? "#0F172A" : "#94A3B8"),
+                ColorPunto = seleccionado ? "#BFDBFE" : "#2563EB",
+                Forma = "RoundRectangle 22"
+            });
+        }
+    }
+
+    private void CargarHorasDisponibles()
+    {
+        HorasDisponibles.Clear();
+
+        foreach (var hora in HorasBase)
+        {
+            var disponible = EsHoraDisponible(FechaSeleccionada, hora);
+            HorasDisponibles.Add(new HoraDisponibleItem
+            {
+                Hora = hora,
+                Disponible = disponible,
+                Seleccionada = string.Equals(NormalizarHora(Hora), NormalizarHora(hora), StringComparison.Ordinal),
+                Fondo = disponible ? "#EFF6FF" : "#F1F5F9",
+                ColorTexto = disponible ? "#1D4ED8" : "#94A3B8"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(Hora) || !EsHoraDisponible(FechaSeleccionada, Hora))
+        {
+            var primeraDisponible = HorasDisponibles.FirstOrDefault(h => h.Disponible);
+            Hora = primeraDisponible?.Hora ?? string.Empty;
+        }
+
+        ActualizarSeleccionHora(Hora);
+    }
+
+    private void ActualizarSeleccionHora(string hora)
+    {
+        var horaNormalizada = NormalizarHora(hora);
+        foreach (var item in HorasDisponibles)
+        {
+            var seleccionada = item.Disponible && string.Equals(NormalizarHora(item.Hora), horaNormalizada, StringComparison.Ordinal);
+            item.Seleccionada = seleccionada;
+            item.Fondo = !item.Disponible
+                ? "#F1F5F9"
+                : seleccionada ? "#2563EB" : "#EFF6FF";
+            item.ColorTexto = !item.Disponible
+                ? "#94A3B8"
+                : seleccionada ? "White" : "#1D4ED8";
+        }
+    }
+
+    private void ActualizarSeleccionServicio(ServicioAgendaItem? seleccionado)
+    {
+        foreach (var item in Servicios)
+        {
+            var esSeleccionado = item == seleccionado;
+            item.Seleccionado = esSeleccionado;
+            item.Borde = esSeleccionado ? "#2563EB" : "#E2E8F0";
+            item.Fondo = esSeleccionado ? "#EFF6FF" : "White";
+        }
+    }
+
+    private bool TieneHorasDisponibles(DateTime fecha)
+        => HorasBase.Any(h => EsHoraDisponible(fecha, h));
+
+    private async Task RefrescarCitasPorFechaAsync(DateTime fecha, bool actualizarCalendario = true)
+    {
+        if (string.IsNullOrWhiteSpace(_token) || SessionService.TokenExpirado(_token))
+        {
+            return;
+        }
+
+        try
+        {
+            var citas = await _citaService.ObtenerCitasPorFechaAsync(fecha, _token);
+            _citasCache.Clear();
+            _citasCache.AddRange(citas);
+            Debug.WriteLine($"[AGENDAR][READ][FECHA] fecha={fecha:yyyy-MM-dd}, total={_citasCache.Count}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AGENDAR][READ][FECHA][ERROR] {ex}");
+        }
+
+        CargarHorasDisponibles();
+        if (actualizarCalendario)
+        {
+            ConstruirCalendario();
+        }
+    }
+
+    private bool EsHoraDisponible(DateTime fecha, string hora)
+    {
+        if (string.IsNullOrWhiteSpace(hora)) return false;
+
+        var normalizada = NormalizarHora(hora);
+        return !_citasCache.Any(c =>
+            c.Fecha.Date == fecha.Date
+            && !string.Equals(c.Estado, EstadosCita.Cancelada, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(NormalizarHora(c.Hora), normalizada, StringComparison.Ordinal));
+    }
+
+    private static string NormalizarHora(string? hora)
+    {
+        if (string.IsNullOrWhiteSpace(hora)) return string.Empty;
+        if (TimeSpan.TryParse(hora, out var ts)) return ts.ToString(@"hh\:mm");
+        return hora.Trim();
+    }
+
+    private async Task MostrarAlertaSeguraAsync(string titulo, string mensaje)
+    {
+        if (MostrarAlertaAsync is not null)
+        {
+            await MostrarAlertaAsync(titulo, mensaje, "OK");
+        }
+    }
+
+}
+
+public class ServicioAgendaItem : BaseViewModel
+{
+    public ServicioAgendaItem(Servicio servicio)
+    {
+        Servicio = servicio;
+    }
+
+    public Servicio Servicio { get; }
+    public string Id => Servicio.Id;
+    public string Nombre => Servicio.Nombre;
+    public string Descripcion => Servicio.Descripcion;
+    public decimal Precio => Servicio.Precio;
+    public int DuracionMinutos => Servicio.DuracionMinutos;
+    public string PrecioTexto => $"${Servicio.Precio:N2}";
+
+    private bool _seleccionado;
+    public bool Seleccionado { get => _seleccionado; set => SetProperty(ref _seleccionado, value); }
+
+    private string _fondo = "White";
+    public string Fondo { get => _fondo; set => SetProperty(ref _fondo, value); }
+
+    private string _borde = "#E2E8F0";
+    public string Borde { get => _borde; set => SetProperty(ref _borde, value); }
+}
+
+public class CalendarDayItem : BaseViewModel
+{
+    public DateTime Fecha { get; set; }
+    public int Numero { get; set; }
+    public bool EsMesActual { get; set; }
+    public bool EsHabilitado { get; set; }
+    public bool EsSeleccionado { get; set; }
+    public bool TieneDisponibilidad { get; set; }
+    public string Fondo { get; set; } = "Transparent";
+    public string Borde { get; set; } = "#E2E8F0";
+    public string ColorTexto { get; set; } = "#0F172A";
+    public string ColorPunto { get; set; } = "#2563EB";
+    public string Forma { get; set; } = "RoundRectangle 22";
+}
+
+public class HoraDisponibleItem : BaseViewModel
+{
+    public string Hora { get; set; } = string.Empty;
+
+    private bool _disponible;
+    public bool Disponible { get => _disponible; set => SetProperty(ref _disponible, value); }
+
+    private bool _seleccionada;
+    public bool Seleccionada { get => _seleccionada; set => SetProperty(ref _seleccionada, value); }
+
+    private string _fondo = "#EFF6FF";
+    public string Fondo { get => _fondo; set => SetProperty(ref _fondo, value); }
+
+    private string _colorTexto = "#1D4ED8";
+    public string ColorTexto { get => _colorTexto; set => SetProperty(ref _colorTexto, value); }
+}

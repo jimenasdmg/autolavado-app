@@ -1,0 +1,146 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.RegisterPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F2F4F7">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24,36,24,28" Spacing="16">
+
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Text="←"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="White"
+                        TextColor="#0D1B3D"
+                        Clicked="OnVolverClicked" />
+            </Grid>
+
+            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                <Label Text="🚘"
+                       FontSize="44"
+                       HorizontalTextAlignment="Center"
+                       TextColor="#1E88E5" />
+                <Label Text="BRIZZO"
+                       FontSize="38"
+                       FontAttributes="Bold"
+                       TextColor="#0D1B3D"
+                       CharacterSpacing="3"
+                       HorizontalTextAlignment="Center" />
+                <Label Text="AUTOLAVADO"
+                       FontSize="12"
+                       FontAttributes="Bold"
+                       TextColor="#1E88E5"
+                       CharacterSpacing="4"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Crear cuenta"
+                       FontSize="34"
+                       FontAttributes="Bold"
+                       TextColor="#0D1B3D" />
+                <Label Text="Únete a BRIZZO y disfruta"
+                       FontSize="17"
+                       TextColor="#616A82" />
+                <Label Text="de la mejor experiencia"
+                       FontSize="17"
+                       TextColor="#616A82" />
+            </VerticalStackLayout>
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="👤" FontSize="16" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="NombreEntry"
+                           Grid.Column="1"
+                           Placeholder="Nombre completo"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16" />
+                </Grid>
+            </Border>
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="✉" FontSize="16" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="EmailEntry"
+                           Grid.Column="1"
+                           Placeholder="Correo electrónico"
+                           Keyboard="Email"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16" />
+                </Grid>
+            </Border>
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="🔒" FontSize="16" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="PasswordEntry"
+                           Grid.Column="1"
+                           Placeholder="Contraseña"
+                           IsPassword="True"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16" />
+                </Grid>
+            </Border>
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="🔒" FontSize="16" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="ConfirmPasswordEntry"
+                           Grid.Column="1"
+                           Placeholder="Confirmar contraseña"
+                           IsPassword="True"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16" />
+                </Grid>
+            </Border>
+
+            <HorizontalStackLayout Spacing="8">
+                <CheckBox x:Name="TerminosCheckBox"
+                          Color="#1E88E5" />
+                <Label VerticalTextAlignment="Center"
+                       FontSize="14"
+                       TextColor="#56617B"
+                       LineBreakMode="WordWrap">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Acepto los" />
+                            <Span Text=" Términos y condiciones" TextColor="#1E88E5" />
+                            <Span Text=" y la " />
+                            <Span Text="Política de privacidad" TextColor="#1E88E5" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </HorizontalStackLayout>
+
+            <Button Text="Crear cuenta"
+                    HeightRequest="52"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    TextColor="White"
+                    BackgroundColor="#0D1B3D"
+                    CornerRadius="12"
+                    Clicked="OnCrearCuentaClicked" />
+
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="6">
+                <Label Text="¿Ya tienes cuenta?"
+                       FontSize="15"
+                       TextColor="#707B96" />
+                <Button Text="Iniciar sesión"
+                        Padding="0"
+                        FontSize="15"
+                        TextColor="#1E88E5"
+                        BackgroundColor="Transparent"
+                        Clicked="OnIrLoginClicked" />
+            </HorizontalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

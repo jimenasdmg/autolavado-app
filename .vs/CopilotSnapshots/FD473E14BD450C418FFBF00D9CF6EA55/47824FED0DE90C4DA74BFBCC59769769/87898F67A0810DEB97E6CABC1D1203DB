@@ -1,0 +1,13 @@
+﻿namespace AutoLavadoApp
+{
+    public partial class App : Application
+    {
+        public App()
+        {
+            InitializeComponent();
+
+            // Usar una sola estrategia: MainPage (sin override CreateWindow)
+            MainPage = new NavigationPage(new LoginPage());
+        }
+    }
+}

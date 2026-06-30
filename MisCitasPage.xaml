@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<ContentPage
+    x:Class="AutoLavadoApp.Views.Cliente.MisCitasPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Mis citas"
+    BackgroundColor="#F5F7FB">
+
+    <ScrollView>
+
+        <VerticalStackLayout
+            Padding="20"
+            Spacing="20">
+
+            <Label
+                Text="Mis citas"
+                FontSize="30"
+                FontAttributes="Bold"
+                TextColor="#0F172A" />
+
+            <CollectionView ItemsSource="{Binding Citas}">
+
+                <CollectionView.ItemTemplate>
+
+                    <DataTemplate>
+
+                        <Frame
+                            Margin="0,0,0,20"
+                            Padding="20"
+                            CornerRadius="20"
+                            BackgroundColor="White"
+                            BorderColor="#E2E8F0">
+
+                            <VerticalStackLayout Spacing="14">
+
+                                <!-- TITULO -->
+                                <Grid ColumnDefinitions="*,Auto">
+
+                                    <Label
+                                        Text="{Binding Servicio}"
+                                        FontSize="24"
+                                        FontAttributes="Bold"
+                                        TextColor="#0F172A" />
+
+                                    <Frame
+                                        Grid.Column="1"
+                                        Padding="12,4"
+                                        CornerRadius="12"
+                                        BackgroundColor="#DCFCE7"
+                                        BorderColor="Transparent">
+
+                                        <Label
+                                            Text="{Binding Estado}"
+                                            FontAttributes="Bold"
+                                            FontSize="14"
+                                            TextColor="#16A34A" />
+
+                                    </Frame>
+
+                                </Grid>
+
+                                <!-- DATOS -->
+                                <Grid
+                                    ColumnDefinitions="Auto,*"
+                                    RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                    RowSpacing="10"
+                                    ColumnSpacing="12">
+
+                                    <!-- FECHA -->
+                                    <Label
+                                        Grid.Row="0"
+                                        Text="📅"
+                                        FontSize="18" />
+
+                                    <Label
+                                        Grid.Row="0"
+                                        Grid.Column="1"
+                                        Text="{Binding Fecha}"
+                                        FontSize="18"
+                                        TextColor="#1E293B" />
+
+                                    <!-- HORA -->
+                                    <Label
+                                        Grid.Row="1"
+                                        Text="🕒"
+                                        FontSize="18" />
+
+                                    <Label
+                                        Grid.Row="1"
+                                        Grid.Column="1"
+                                        Text="{Binding Hora}"
+                                        FontSize="18"
+                                        TextColor="#1E293B" />
+
+                                    <!-- VEHICULO -->
+                                    <Label
+                                        Grid.Row="2"
+                                        Text="🚗"
+                                        FontSize="18" />
+
+                                    <Label
+                                        Grid.Row="2"
+                                        Grid.Column="1"
+                                        Text="{Binding VehiculoNombre}"
+                                        FontSize="18"
+                                        TextColor="#1E293B" />
+
+                                    <!-- METODO -->
+                                    <Label
+                                        Grid.Row="3"
+                                        Text="💳"
+                                        FontSize="18" />
+
+                                    <Label
+                                        Grid.Row="3"
+                                        Grid.Column="1"
+                                        Text="{Binding MetodoPago}"
+                                        FontSize="18"
+                                        TextColor="#1E293B" />
+
+                                    <!-- TOTAL -->
+                                    <Label
+                                        Grid.Row="4"
+                                        Text="💲"
+                                        FontSize="18" />
+
+                                    <Label
+                                        Grid.Row="4"
+                                        Grid.Column="1"
+                                        Text="{Binding Precio, StringFormat='${0:N2}'}"
+                                        FontSize="18"
+                                        FontAttributes="Bold"
+                                        TextColor="#2563EB" />
+
+                                </Grid>
+
+                                <!-- ESTADO -->
+                                <Frame
+                                    Padding="16"
+                                    CornerRadius="16"
+                                    BorderColor="#E2E8F0"
+                                    BackgroundColor="#F8FAFC">
+
+                                    <VerticalStackLayout Spacing="8">
+
+                                        <Label
+                                            Text="Estado de tu servicio"
+                                            FontSize="18"
+                                            FontAttributes="Bold"
+                                            TextColor="#0F172A" />
+
+                                        <Label
+                                            Text="{Binding Estado}"
+                                            FontSize="17"
+                                            TextColor="#16A34A"
+                                            FontAttributes="Bold" />
+
+                                    </VerticalStackLayout>
+
+                                </Frame>
+
+                                <!-- BOTON -->
+                                <Button
+                                    Text="Ver detalle"
+                                    BackgroundColor="#0F2A6B"
+                                    TextColor="White"
+                                    FontAttributes="Bold"
+                                    CornerRadius="12"
+                                    HeightRequest="50"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.VerDetalleCommand}"
+                                    CommandParameter="{Binding .}" />
+
+                                <Button
+                                    Text="Cancelar cita"
+                                    BackgroundColor="#DC2626"
+                                    TextColor="White"
+                                    FontAttributes="Bold"
+                                    CornerRadius="12"
+                                    HeightRequest="50"
+                                    Margin="0,8,0,0"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.CancelarCommand}"
+                                    CommandParameter="{Binding .}" />
+
+                            </VerticalStackLayout>
+
+                        </Frame>
+
+                    </DataTemplate>
+
+                </CollectionView.ItemTemplate>
+
+            </CollectionView>
+
+        </VerticalStackLayout>
+
+    </ScrollView>
+
+</ContentPage>

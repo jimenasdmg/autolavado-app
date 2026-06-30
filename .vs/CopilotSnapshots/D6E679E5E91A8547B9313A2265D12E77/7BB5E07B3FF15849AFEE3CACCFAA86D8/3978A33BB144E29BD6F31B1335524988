@@ -1,0 +1,279 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Data.Mappers;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class ServicioService : FirestoreBaseService
+    {
+        private const string Coleccion = "servicios";
+        private const string FirebaseProjectId = "autolavadoapp-f9a62";
+        private readonly HttpClient _http;
+
+        public ServicioService(HttpClient httpClient)
+            : base(httpClient)
+        {
+            _http = httpClient;
+        }
+
+        public async Task<List<Servicio>> ObtenerServiciosActivosAsync(string? idToken = null)
+        {
+            var result = new List<Servicio>();
+            if (string.IsNullOrWhiteSpace(idToken)) return result;
+
+            var query = new
+            {
+                structuredQuery = new
+                {
+                    from = new[] { new { collectionId = Coleccion } },
+                    where = new
+                    {
+                        compositeFilter = new
+                        {
+                            op = "AND",
+                            filters = new object[]
+                            {
+                                new
+                                {
+                                    fieldFilter = new
+                                    {
+                                        field = new { fieldPath = "activo" },
+                                        op = "EQUAL",
+                                        value = new { booleanValue = true }
+                                    }
+                                },
+                                new
+                                {
+                                    fieldFilter = new
+                                    {
+                                        field = new { fieldPath = "visible" },
+                                        op = "EQUAL",
+                                        value = new { booleanValue = true }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var rows = await RunQueryAsync(query, idToken);
+            foreach (var row in rows)
+            {
+                var item = ServicioFirestoreMapper.ParseFromQueryRow(row);
+                if (item is not null && item.Activo && item.Visible) result.Add(item);
+            }
+
+            return result;
+        }
+
+        public async Task<List<Servicio>> ObtenerServiciosAsync(string idToken)
+        {
+            var doc = await ObtenerColeccionAsync(Coleccion, idToken);
+            if (doc is null) return new List<Servicio>();
+
+            var result = new List<Servicio>();
+            if (!doc.Value.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var item = ParseServicio(d);
+                if (item is not null) result.Add(item);
+            }
+
+            return result;
+        }
+
+        public async Task CrearServicioAsync(
+            string nombre,
+            string descripcion,
+            decimal precio,
+            int duracionMinutos,
+            bool activo,
+            bool visibleClientes,
+            string imagen,
+            string idToken)
+        {
+            var id = Guid.NewGuid().ToString("N");
+            var body = new
+            {
+                fields = ServicioFirestoreMapper.BuildCreateFields(
+                    id,
+                    nombre,
+                    descripcion,
+                    precio,
+                    duracionMinutos,
+                    activo,
+                    visibleClientes,
+                    imagen)
+            };
+
+            await CrearDocumentoAsync(Coleccion, body, id, idToken);
+        }
+
+        public async Task EditarServicioAsync(
+            string servicioId,
+            string nombre,
+            string descripcion,
+            decimal precio,
+            int duracionMinutos,
+            string imagen,
+            string idToken)
+        {
+            var body = new
+            {
+                fields = new
+                {
+                    nombre = new { stringValue = nombre },
+                    descripcion = new { stringValue = descripcion },
+                    precio = new { doubleValue = (double)precio },
+                    duracionMinutos = new { integerValue = duracionMinutos },
+                    imagen = new { stringValue = imagen ?? string.Empty }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible editar el servicio.", "SERVICE_EDIT_FAILED");
+            }
+        }
+
+        public async Task CambiarPrecioAsync(string servicioId, decimal nuevoPrecio, string idToken)
+        {
+            var url = $"{BuildDocumentUrl(Coleccion, servicioId)}?updateMask.fieldPaths=precio";
+            var body = new
+            {
+                fields = new
+                {
+                    precio = new { doubleValue = (double)nuevoPrecio }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible actualizar el precio.", "SERVICE_PRICE_UPDATE_FAILED");
+            }
+        }
+
+        public async Task CambiarEstadoAsync(string servicioId, bool activo, string idToken)
+        {
+            var body = new
+            {
+                fields = new
+                {
+                    activo = new { booleanValue = activo }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible actualizar el estado del servicio.", "SERVICE_STATUS_UPDATE_FAILED");
+            }
+        }
+
+        public async Task CambiarVisibleClientesAsync(string servicioId, bool visibleClientes, string idToken)
+        {
+            var body = new
+            {
+                fields = new
+                {
+                    visible = new { booleanValue = visibleClientes },
+                    visibleClientes = new { booleanValue = visibleClientes }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible actualizar la visibilidad del servicio.", "SERVICE_VISIBILITY_UPDATE_FAILED");
+            }
+        }
+
+        private static Servicio? ParseServicio(JsonElement doc)
+            => ServicioFirestoreMapper.ParseFromDocument(doc);
+
+        private async Task<List<JsonElement>> RunQueryAsync(object queryBody, string idToken)
+        {
+            var url = $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents:runQuery";
+            var json = JsonSerializer.Serialize(queryBody);
+
+            using var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", idToken);
+            req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var res = await _http.SendAsync(req);
+            var payload = await res.Content.ReadAsStringAsync();
+            if (!res.IsSuccessStatusCode)
+            {
+                return new List<JsonElement>();
+            }
+
+            using var doc = JsonDocument.Parse(payload);
+            var result = new List<JsonElement>();
+
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                result.Add(item.Clone());
+            }
+
+            return result;
+        }
+
+        private static string? ReadString(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+            return null;
+        }
+
+        private static int ReadInt(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("integerValue", out var i) && int.TryParse(i.GetString(), out var n)) return n;
+            return 0;
+        }
+
+        private static decimal ReadDecimal(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("doubleValue", out var d) && d.TryGetDouble(out var dv)) return (decimal)dv;
+            if (v.TryGetProperty("integerValue", out var i) && decimal.TryParse(i.GetString(), out var iv)) return iv;
+            return 0;
+        }
+
+        private static bool ReadBool(JsonElement fields, string key, bool fallback = false)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return fallback;
+            if (v.TryGetProperty("booleanValue", out var b) && b.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return b.GetBoolean();
+            }
+
+            return fallback;
+        }
+
+        private static DateTime? ReadTimestamp(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (!v.TryGetProperty("timestampValue", out var ts)) return null;
+            if (!DateTime.TryParse(ts.GetString(), out var parsed)) return null;
+            return parsed;
+        }
+    }
+}

@@ -1,0 +1,47 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class EmpleadoHomePage : ContentPage
+{
+    private readonly EmpleadoViewModel _viewModel;
+    private readonly Services.SessionService _sessionService;
+
+    public EmpleadoHomePage()
+    {
+        InitializeComponent();
+        _sessionService = IPlatformApplication.Current?.Services.GetService<Services.SessionService>()
+            ?? throw new InvalidOperationException("No se pudo resolver SessionService desde DI.");
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<EmpleadoViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver EmpleadoViewModel desde DI.");
+
+        _viewModel.MostrarAlertaAsync = (titulo, mensaje, cancelar) => DisplayAlertAsync(titulo, mensaje, cancelar);
+        _viewModel.SolicitarObservacionAsync = async cliente =>
+            await DisplayPromptAsync("Observación", $"Agregar observación para {cliente}", "Guardar", "Cancelar", maxLength: 180);
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarDatosAsync();
+    }
+
+    private async void OnVerDetalleCitaClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.CommandParameter is not string citaId || string.IsNullOrWhiteSpace(citaId))
+        {
+            return;
+        }
+
+        await Navigation.PushAsync(new DetalleCitaPage(citaId));
+    }
+
+    private void OnCerrarSesionClicked(object? sender, EventArgs e)
+    {
+        _sessionService.CerrarSesion();
+        Application.Current!.MainPage = new NavigationPage(new LoginPage());
+    }
+}

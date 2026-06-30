@@ -1,0 +1,235 @@
+﻿using System;
+using System.ComponentModel;
+using System.Net.Mail;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class RegisterViewModel : INotifyPropertyChanged
+    {
+        private readonly FirebaseAuthService _firebaseAuthService;
+
+        private string _nombre = string.Empty;
+        private string _apellidoPaterno = string.Empty;
+        private string _apellidoMaterno = string.Empty;
+        private string _email = string.Empty;
+        private string _password = string.Empty;
+        private string _confirmPassword = string.Empty;
+        private bool _aceptaTerminos;
+        private bool _isPasswordHidden = true;
+        private bool _isConfirmPasswordHidden = true;
+        private string _errorMessage = string.Empty;
+        private string _idToken = string.Empty;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public RegisterViewModel(FirebaseAuthService firebaseAuthService)
+        {
+            _firebaseAuthService = firebaseAuthService;
+            TogglePasswordVisibilityCommand = new Command(TogglePasswordVisibility);
+            ToggleConfirmPasswordVisibilityCommand = new Command(ToggleConfirmPasswordVisibility);
+        }
+
+        public string Nombre
+        {
+            get => _nombre;
+            set => SetProperty(ref _nombre, value);
+        }
+
+        public string ApellidoPaterno
+        {
+            get => _apellidoPaterno;
+            set => SetProperty(ref _apellidoPaterno, value);
+        }
+
+        public string ApellidoMaterno
+        {
+            get => _apellidoMaterno;
+            set => SetProperty(ref _apellidoMaterno, value);
+        }
+
+        public string Email
+        {
+            get => _email;
+            set => SetProperty(ref _email, value);
+        }
+
+        public string Password
+        {
+            get => _password;
+            set => SetProperty(ref _password, value);
+        }
+
+        public string ConfirmPassword
+        {
+            get => _confirmPassword;
+            set => SetProperty(ref _confirmPassword, value);
+        }
+
+        public bool AceptaTerminos
+        {
+            get => _aceptaTerminos;
+            set => SetProperty(ref _aceptaTerminos, value);
+        }
+
+        public bool IsPasswordHidden
+        {
+            get => _isPasswordHidden;
+            set
+            {
+                if (SetProperty(ref _isPasswordHidden, value))
+                {
+                    OnPropertyChanged(nameof(PasswordEyeIcon));
+                }
+            }
+        }
+
+        public bool IsConfirmPasswordHidden
+        {
+            get => _isConfirmPasswordHidden;
+            set
+            {
+                if (SetProperty(ref _isConfirmPasswordHidden, value))
+                {
+                    OnPropertyChanged(nameof(ConfirmPasswordEyeIcon));
+                }
+            }
+        }
+
+        public string PasswordEyeIcon => IsPasswordHidden ? "👁" : "🙈";
+
+        public string ConfirmPasswordEyeIcon => IsConfirmPasswordHidden ? "👁" : "🙈";
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            private set
+            {
+                if (SetProperty(ref _errorMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+        public string IdToken
+        {
+            get => _idToken;
+            private set => SetProperty(ref _idToken, value);
+        }
+
+        public ICommand TogglePasswordVisibilityCommand { get; }
+        public ICommand ToggleConfirmPasswordVisibilityCommand { get; }
+
+        public async Task<bool> RegistrarAsync()
+        {
+            ErrorMessage = string.Empty;
+
+            if (!ValidarCampos())
+            {
+                return false;
+            }
+
+            var result = await _firebaseAuthService.RegisterAsync(Email.Trim(), Password);
+            if (!result.IsSuccess)
+            {
+                ErrorMessage = result.ErrorMessage;
+                return false;
+            }
+
+            IdToken = result.IdToken;
+            return true;
+        }
+
+        private bool ValidarCampos()
+        {
+            if (string.IsNullOrWhiteSpace(Nombre))
+            {
+                ErrorMessage = "El nombre es obligatorio.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(ApellidoPaterno))
+            {
+                ErrorMessage = "El apellido paterno es obligatorio.";
+                return false;
+            }
+
+            if (!EsEmailValido(Email))
+            {
+                ErrorMessage = "Ingresa un correo electrónico válido.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Password) || Password.Length < 6)
+            {
+                ErrorMessage = "La contraseña debe tener al menos 6 caracteres.";
+                return false;
+            }
+
+            if (Password != ConfirmPassword)
+            {
+                ErrorMessage = "La confirmación de contraseña no coincide.";
+                return false;
+            }
+
+            if (!AceptaTerminos)
+            {
+                ErrorMessage = "Debes aceptar los términos y condiciones.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool EsEmailValido(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return false;
+            }
+
+            try
+            {
+                var direccion = new MailAddress(email);
+                return string.Equals(direccion.Address, email.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void TogglePasswordVisibility()
+        {
+            IsPasswordHidden = !IsPasswordHidden;
+        }
+
+        private void ToggleConfirmPasswordVisibility()
+        {
+            IsConfirmPasswordHidden = !IsConfirmPasswordHidden;
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

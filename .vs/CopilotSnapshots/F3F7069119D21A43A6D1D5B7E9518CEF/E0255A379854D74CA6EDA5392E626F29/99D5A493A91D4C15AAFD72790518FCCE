@@ -1,0 +1,241 @@
+﻿using AutoLavadoApp.Services;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.ViewModels;
+using AutoLavadoApp.Models;
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class DetalleCitaViewModel : INotifyPropertyChanged
+    {
+        private readonly ICitaRepository _citaRepository;
+        private readonly ObservacionService _observacionService;
+        private readonly SessionService _sessionService;
+
+        private string _citaId = string.Empty;
+        private string _vehiculo = string.Empty;
+        private string _servicio = string.Empty;
+        private string _modalidad = string.Empty;
+        private string _empleadoAsignado = string.Empty;
+        private string _direccion = string.Empty;
+        private DateTime _fecha;
+        private string _hora = string.Empty;
+        private string _estado = string.Empty;
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public DetalleCitaViewModel(ICitaRepository citaRepository, ObservacionService observacionService, SessionService sessionService)
+        {
+            _citaRepository = citaRepository;
+            _observacionService = observacionService;
+            _sessionService = sessionService;
+            Observaciones = new ObservableCollection<ObservacionTimelineItem>();
+        }
+
+        public ObservableCollection<ObservacionTimelineItem> Observaciones { get; }
+
+        public string CitaId
+        {
+            get => _citaId;
+            private set => SetProperty(ref _citaId, value);
+        }
+
+        public string Vehiculo
+        {
+            get => _vehiculo;
+            private set => SetProperty(ref _vehiculo, value);
+        }
+
+        public string Servicio
+        {
+            get => _servicio;
+            private set => SetProperty(ref _servicio, value);
+        }
+
+        public DateTime Fecha
+        {
+            get => _fecha;
+            private set => SetProperty(ref _fecha, value);
+        }
+
+        public string Modalidad
+        {
+            get => _modalidad;
+            private set
+            {
+                if (SetProperty(ref _modalidad, value))
+                {
+                    OnPropertyChanged(nameof(EsDomicilio));
+                }
+            }
+        }
+
+        public bool EsDomicilio => string.Equals(Modalidad, TiposServicioCita.Domicilio, StringComparison.OrdinalIgnoreCase);
+
+        public string EmpleadoAsignado
+        {
+            get => _empleadoAsignado;
+            private set => SetProperty(ref _empleadoAsignado, value);
+        }
+
+        public string Direccion
+        {
+            get => _direccion;
+            private set => SetProperty(ref _direccion, value);
+        }
+
+        public string Hora
+        {
+            get => _hora;
+            private set => SetProperty(ref _hora, value);
+        }
+
+        public string Estado
+        {
+            get => _estado;
+            private set
+            {
+                if (SetProperty(ref _estado, value))
+                {
+                    OnPropertyChanged(nameof(EstadoTexto));
+                    OnPropertyChanged(nameof(EstadoColor));
+                    OnPropertyChanged(nameof(EstadoFondoColor));
+                }
+            }
+        }
+
+        public string EstadoTexto => Estado switch
+        {
+            EstadosCita.Pendiente => "Pendiente",
+            EstadosCita.Aceptada => "Aceptada",
+            EstadosCita.EmpleadoAsignado => "Empleado asignado",
+            EstadosCita.EnCamino => "En camino",
+            EstadosCita.VehiculoRecogido => "Vehículo recogido",
+            EstadosCita.Lavando => "Lavando",
+            EstadosCita.Finalizada => "Finalizada",
+            EstadosCita.Cancelada => "Cancelada",
+            _ => Estado
+        };
+
+        public string EstadoColor => Estado switch
+        {
+            EstadosCita.Pendiente => "#F59E0B",
+            EstadosCita.Aceptada => "#2563EB",
+            EstadosCita.EmpleadoAsignado => "#2563EB",
+            EstadosCita.EnCamino => "#7C3AED",
+            EstadosCita.VehiculoRecogido => "#4338CA",
+            EstadosCita.Lavando => "#6D28D9",
+            EstadosCita.Finalizada => "#16A34A",
+            EstadosCita.Cancelada => "#DC2626",
+            _ => "#64748B"
+        };
+
+        public string EstadoFondoColor => Estado switch
+        {
+            EstadosCita.Pendiente => "#FEF3C7",
+            EstadosCita.Aceptada => "#DBEAFE",
+            EstadosCita.EmpleadoAsignado => "#DBEAFE",
+            EstadosCita.EnCamino => "#EDE9FE",
+            EstadosCita.VehiculoRecogido => "#EEF2FF",
+            EstadosCita.Lavando => "#EDE9FE",
+            EstadosCita.Finalizada => "#DCFCE7",
+            EstadosCita.Cancelada => "#FEE2E2",
+            _ => "#E2E8F0"
+        };
+
+        public bool HasObservaciones => Observaciones.Count > 0;
+
+        public bool HasNoObservaciones => !HasObservaciones;
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set => SetProperty(ref _isBusy, value);
+        }
+
+        public async Task CargarDetalleAsync(string citaId)
+        {
+            if (string.IsNullOrWhiteSpace(citaId) || IsBusy)
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var idToken = await _sessionService.ObtenerTokenAsync();
+                if (SessionService.TokenExpirado(idToken))
+                {
+                    throw new UnauthorizedAccessException("El token de sesión expiró. Inicia sesión nuevamente.");
+                }
+
+                var citas = await _citaRepository.ObtenerTodasAsync(idToken);
+                var cita = citas.Find(c => c.Id == citaId);
+                if (cita == null)
+                {
+                    return;
+                }
+
+                CitaId = cita.Id;
+                Vehiculo = string.IsNullOrWhiteSpace(cita.VehiculoNombre) ? cita.Vehiculo : cita.VehiculoNombre;
+                Servicio = cita.Servicio;
+                Fecha = cita.Fecha;
+                Hora = cita.Hora;
+                Estado = cita.Estado;
+                Modalidad = cita.Modalidad;
+                EmpleadoAsignado = string.IsNullOrWhiteSpace(cita.EmpleadoNombre) ? "Por asignar" : cita.EmpleadoNombre;
+                Direccion = cita.Direccion;
+
+                var observaciones = await _observacionService.ObtenerObservacionesPorCitaAsync(citaId);
+                Observaciones.Clear();
+                foreach (var observacion in observaciones)
+                {
+                    Observaciones.Add(new ObservacionTimelineItem
+                    {
+                        Comentario = observacion.Comentario,
+                        EmpleadoId = observacion.EmpleadoId,
+                        Fecha = observacion.Fecha
+                    });
+                }
+
+                OnPropertyChanged(nameof(HasObservaciones));
+                OnPropertyChanged(nameof(HasNoObservaciones));
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+
+    public class ObservacionTimelineItem
+    {
+        public string Comentario { get; set; } = string.Empty;
+        public string EmpleadoId { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string FechaTexto => Fecha.ToString("dd/MM/yyyy HH:mm");
+    }
+}

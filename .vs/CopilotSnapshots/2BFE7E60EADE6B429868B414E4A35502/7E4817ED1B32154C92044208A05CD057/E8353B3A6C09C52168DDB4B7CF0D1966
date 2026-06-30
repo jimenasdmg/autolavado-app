@@ -1,0 +1,46 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class HomePage : ContentPage
+{
+    private readonly HomeViewModel _homeViewModel;
+    private readonly Services.SessionService _sessionService;
+
+    public HomePage()
+    {
+        InitializeComponent();
+        _sessionService = IPlatformApplication.Current?.Services.GetService<Services.SessionService>()
+            ?? throw new InvalidOperationException("No se pudo resolver SessionService desde DI.");
+        _homeViewModel = IPlatformApplication.Current?.Services.GetService<HomeViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver HomeViewModel desde DI.");
+        BindingContext = _homeViewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _homeViewModel.CargarUsuarioAsync();
+    }
+
+    private async void OnAgendarAhoraClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new AgendarCitaPage());
+    }
+
+    private async void OnMisAutosClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new MisVehiculosPage());
+    }
+
+    private async void OnMiCuentaClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new MiCuentaPage());
+    }
+
+    private void OnCerrarSesionClicked(object? sender, EventArgs e)
+    {
+        _sessionService.CerrarSesion();
+        Application.Current!.MainPage = new NavigationPage(new LoginPage());
+    }
+}

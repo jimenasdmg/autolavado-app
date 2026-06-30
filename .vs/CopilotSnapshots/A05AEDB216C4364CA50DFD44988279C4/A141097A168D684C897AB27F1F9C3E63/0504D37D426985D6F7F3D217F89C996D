@@ -1,0 +1,487 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using AutoLavadoApp.Services;
+using Microsoft.Extensions.Logging;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class AdminViewModel : INotifyPropertyChanged
+    {
+        private readonly CitaService _citaService;
+        private readonly EmpleadoService _empleadoService;
+        private readonly SessionService _sessionService;
+        private readonly ServicioService _servicioService;
+        private readonly UsuarioService _usuarioService;
+        private readonly ILogger<AdminViewModel>? _logger;
+
+        private int _citasHoy;
+        private int _pendientes;
+        private int _finalizadas;
+        private int _empleadosActivos;
+        private decimal _ingresosEstimados;
+        private string _nombreAdministrador = "Administrador";
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public AdminViewModel(CitaService citaService, EmpleadoService empleadoService, ServicioService servicioService, SessionService sessionService, UsuarioService usuarioService, ILogger<AdminViewModel>? logger = null)
+        {
+            _citaService = citaService;
+            _empleadoService = empleadoService;
+            _servicioService = servicioService;
+            _sessionService = sessionService;
+            _usuarioService = usuarioService;
+            _logger = logger;
+
+            Empleados = new ObservableCollection<EmpleadoAdminItem>();
+            Servicios = new ObservableCollection<ServicioAdminItem>();
+            CitasGlobales = new ObservableCollection<CitaAdminItem>();
+        }
+
+        public ObservableCollection<EmpleadoAdminItem> Empleados { get; }
+        public ObservableCollection<ServicioAdminItem> Servicios { get; }
+        public ObservableCollection<CitaAdminItem> CitasGlobales { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+        public Func<string, string, string, string, string, Task<string?>>? SolicitarInputAsync { get; set; }
+
+        public int CitasHoy
+        {
+            get => _citasHoy;
+            private set => SetProperty(ref _citasHoy, value);
+        }
+
+        public int Pendientes
+        {
+            get => _pendientes;
+            private set => SetProperty(ref _pendientes, value);
+        }
+
+        public int Finalizadas
+        {
+            get => _finalizadas;
+            private set => SetProperty(ref _finalizadas, value);
+        }
+
+        public int EmpleadosActivos
+        {
+            get => _empleadosActivos;
+            private set => SetProperty(ref _empleadosActivos, value);
+        }
+
+        public decimal IngresosEstimados
+        {
+            get => _ingresosEstimados;
+            private set => SetProperty(ref _ingresosEstimados, value);
+        }
+
+        public string IngresosEstimadosTexto => $"${IngresosEstimados:N2}";
+
+        public string NombreAdministrador
+        {
+            get => _nombreAdministrador;
+            private set => SetProperty(ref _nombreAdministrador, value);
+        }
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set => SetProperty(ref _isBusy, value);
+        }
+
+        public async Task CargarDashboardAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var sesion = await ObtenerContextoSesionAdminAsync();
+                LogDebug($"[AdminDashboard] Sesión activa. Uid={sesion.Uid}, Rol={sesion.Rol}");
+
+                await CargarAdministradorAsync(sesion.Uid, sesion.Token);
+
+                await CargarCitasGlobalesAsync(sesion.Token);
+                await CargarEmpleadosAsync(sesion.Token);
+                await CargarServiciosAsync(sesion.Token);
+                ActualizarResumen();
+
+                LogDebug($"[AdminDashboard] Carga completada. Citas={CitasGlobales.Count}, Empleados={Empleados.Count}, Servicios={Servicios.Count}");
+            }
+            catch (Exception ex)
+            {
+                LogError(ex, "Error al cargar panel administrador.");
+
+                if (MostrarAlertaAsync != null)
+                {
+                    var mensaje = "No fue posible cargar el panel administrador.";
+#if DEBUG
+                    mensaje = $"{mensaje}\n\nDetalle: {ex.Message}";
+#endif
+                    await MostrarAlertaAsync("Error", mensaje, "OK");
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task<ContextoSesionAdmin> ObtenerContextoSesionAdminAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            var rol = _sessionService.ObtenerRol();
+            var token = await _sessionService.ObtenerTokenAsync();
+
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                throw new InvalidOperationException("No hay un usuario autenticado en SessionService (uid vacío).");
+            }
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new InvalidOperationException("La sesión actual no tiene token de Firebase.");
+            }
+
+            if (!string.Equals(rol, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException($"El rol actual '{rol}' no tiene acceso al panel administrador.");
+            }
+
+            return new ContextoSesionAdmin(uid, token, rol);
+        }
+
+        private async Task CargarAdministradorAsync(string uid, string token)
+        {
+            LogDebug("[AdminDashboard] Consultando perfil de usuario actual en Firebase (colección usuarios).");
+            var admin = await _usuarioService.ObtenerUsuarioPorIdAsync(uid, token);
+
+            if (admin == null || string.IsNullOrWhiteSpace(admin.Nombre))
+            {
+                NombreAdministrador = "Administrador";
+                return;
+            }
+
+            if (!string.Equals(admin.Rol, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException($"El usuario autenticado no es admin en Firebase. Rol detectado: '{admin.Rol}'.");
+            }
+
+            var nombre = $"{admin.Nombre} {admin.ApellidoPaterno}".Trim();
+            NombreAdministrador = string.IsNullOrWhiteSpace(nombre) ? "Administrador" : nombre;
+        }
+
+        public async Task CambiarRolEmpleadoAsync(EmpleadoAdminItem empleado)
+        {
+            if (empleado == null)
+            {
+                return;
+            }
+
+            var nuevoRol = empleado.Rol == "empleado" ? "admin" : "empleado";
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            await _empleadoService.ActualizarRolAsync(empleado.Id, nuevoRol, idToken);
+            await CargarEmpleadosAsync(idToken);
+        }
+
+        public async Task CambiarEstadoEmpleadoAsync(EmpleadoAdminItem empleado)
+        {
+            if (empleado == null)
+            {
+                return;
+            }
+
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            await _empleadoService.ActualizarEstadoAsync(empleado.Id, !empleado.Activo, idToken);
+            await CargarEmpleadosAsync(idToken);
+            ActualizarResumen();
+        }
+
+        public async Task AgregarServicioAsync()
+        {
+            if (SolicitarInputAsync == null)
+            {
+                return;
+            }
+
+            var nombre = await SolicitarInputAsync("Nuevo servicio", "Nombre", "Guardar", "Cancelar", "");
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                return;
+            }
+
+            var descripcion = await SolicitarInputAsync("Nuevo servicio", "Descripción", "Guardar", "Cancelar", "");
+            if (string.IsNullOrWhiteSpace(descripcion))
+            {
+                return;
+            }
+
+            var precioRaw = await SolicitarInputAsync("Nuevo servicio", "Precio", "Guardar", "Cancelar", "");
+            if (!decimal.TryParse(precioRaw, out var precio))
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Precio inválido", "Ingresa un precio numérico válido.", "OK");
+                }
+                return;
+            }
+
+            await _servicioService.CrearServicioAsync(nombre.Trim(), descripcion.Trim(), precio);
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            await CargarServiciosAsync(idToken);
+        }
+
+        public async Task EditarServicioAsync(ServicioAdminItem servicio)
+        {
+            if (servicio == null || SolicitarInputAsync == null)
+            {
+                return;
+            }
+
+            var nuevoNombre = await SolicitarInputAsync("Editar servicio", "Nombre", "Guardar", "Cancelar", servicio.Nombre);
+            if (string.IsNullOrWhiteSpace(nuevoNombre))
+            {
+                return;
+            }
+
+            var nuevaDescripcion = await SolicitarInputAsync("Editar servicio", "Descripción", "Guardar", "Cancelar", servicio.Descripcion);
+            if (string.IsNullOrWhiteSpace(nuevaDescripcion))
+            {
+                return;
+            }
+
+            await _servicioService.EditarServicioAsync(servicio.Id, nuevoNombre.Trim(), nuevaDescripcion.Trim());
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            await CargarServiciosAsync(idToken);
+        }
+
+        public async Task CambiarPrecioServicioAsync(ServicioAdminItem servicio)
+        {
+            if (servicio == null || SolicitarInputAsync == null)
+            {
+                return;
+            }
+
+            var precioRaw = await SolicitarInputAsync("Cambiar precio", "Nuevo precio", "Guardar", "Cancelar", servicio.Precio.ToString("N2"));
+            if (!decimal.TryParse(precioRaw, out var nuevoPrecio))
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Precio inválido", "Ingresa un precio numérico válido.", "OK");
+                }
+                return;
+            }
+
+            await _servicioService.CambiarPrecioAsync(servicio.Id, nuevoPrecio);
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            await CargarServiciosAsync(idToken);
+        }
+
+        public async Task CambiarEstadoServicioAsync(ServicioAdminItem servicio)
+        {
+            if (servicio == null)
+            {
+                return;
+            }
+
+            await _servicioService.CambiarEstadoAsync(servicio.Id, !servicio.Activo);
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            await CargarServiciosAsync(idToken);
+        }
+
+        private async Task CargarCitasGlobalesAsync(string idToken)
+        {
+            LogDebug("[AdminDashboard] Consultando colección 'citas'.");
+            var citas = await _citaService.ObtenerTodasCitasAsync(idToken);
+            CitasGlobales.Clear();
+
+            foreach (var cita in citas)
+            {
+                CitasGlobales.Add(new CitaAdminItem
+                {
+                    ClienteId = cita.ClienteId,
+                    Servicio = cita.Servicio,
+                    Fecha = cita.Fecha,
+                    Hora = cita.Hora,
+                    Estado = cita.Estado,
+                    Vehiculo = cita.Vehiculo,
+                    Comentarios = cita.Comentarios
+                });
+            }
+
+            LogDebug($"[AdminDashboard] Colección 'citas' cargada. Registros={CitasGlobales.Count}");
+        }
+
+        private async Task CargarEmpleadosAsync(string idToken)
+        {
+            LogDebug("[AdminDashboard] Consultando colección 'usuarios' (empleados/admin). ");
+            var empleados = await _empleadoService.ObtenerEmpleadosAsync(idToken);
+            Empleados.Clear();
+
+            foreach (var empleado in empleados)
+            {
+                Empleados.Add(new EmpleadoAdminItem
+                {
+                    Id = empleado.Id,
+                    Nombre = empleado.Nombre,
+                    ApellidoPaterno = empleado.ApellidoPaterno,
+                    ApellidoMaterno = empleado.ApellidoMaterno,
+                    Email = empleado.Email,
+                    Rol = empleado.Rol,
+                    Activo = empleado.Activo
+                });
+            }
+
+            LogDebug($"[AdminDashboard] Empleados cargados. Registros={Empleados.Count}");
+        }
+
+        private async Task CargarServiciosAsync(string idToken)
+        {
+            LogDebug("[AdminDashboard] Consultando colección 'servicios'.");
+            var servicios = await _servicioService.ObtenerServiciosAsync(idToken);
+            Servicios.Clear();
+
+            foreach (var servicio in servicios)
+            {
+                Servicios.Add(new ServicioAdminItem
+                {
+                    Id = servicio.Id,
+                    Nombre = servicio.Nombre,
+                    Descripcion = servicio.Descripcion,
+                    Precio = servicio.Precio,
+                    Activo = servicio.Activo
+                });
+            }
+
+            LogDebug($"[AdminDashboard] Servicios cargados. Registros={Servicios.Count}");
+        }
+
+        private void LogDebug(string message)
+        {
+            _logger?.LogDebug(message);
+            Debug.WriteLine(message);
+        }
+
+        private void LogError(Exception ex, string message)
+        {
+            _logger?.LogError(ex, message);
+            Debug.WriteLine($"[AdminDashboard][Error] {message}");
+            Debug.WriteLine(ex.ToString());
+        }
+
+        private void ActualizarResumen()
+        {
+            var hoy = DateTime.Today;
+            CitasHoy = 0;
+            Pendientes = 0;
+            Finalizadas = 0;
+            IngresosEstimados = 0;
+
+            foreach (var cita in CitasGlobales)
+            {
+                if (cita.Fecha.Date == hoy)
+                {
+                    CitasHoy++;
+                }
+
+                if (cita.Estado == "Pendiente")
+                {
+                    Pendientes++;
+                }
+
+                if (cita.Estado == "Finalizada")
+                {
+                    Finalizadas++;
+                    IngresosEstimados += 250m;
+                }
+            }
+
+            EmpleadosActivos = 0;
+            foreach (var empleado in Empleados)
+            {
+                if (empleado.Activo)
+                {
+                    EmpleadosActivos++;
+                }
+            }
+
+            OnPropertyChanged(nameof(IngresosEstimadosTexto));
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+
+        private sealed record ContextoSesionAdmin(string Uid, string Token, string Rol);
+    }
+
+    public class EmpleadoAdminItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string ApellidoPaterno { get; set; } = string.Empty;
+        public string ApellidoMaterno { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Rol { get; set; } = "empleado";
+        public bool Activo { get; set; }
+
+        public string NombreCompleto => $"{Nombre} {ApellidoPaterno} {ApellidoMaterno}".Trim();
+        public string EstadoTexto => Activo ? "Activo" : "Inactivo";
+        public string EstadoColor => Activo ? "#16A34A" : "#B91C1C";
+    }
+
+    public class ServicioAdminItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public decimal Precio { get; set; }
+        public bool Activo { get; set; }
+
+        public string PrecioTexto => $"${Precio:N2}";
+        public string EstadoTexto => Activo ? "Activo" : "Inactivo";
+        public string EstadoColor => Activo ? "#16A34A" : "#B91C1C";
+    }
+
+    public class CitaAdminItem
+    {
+        public string ClienteId { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string Vehiculo { get; set; } = string.Empty;
+        public string Comentarios { get; set; } = string.Empty;
+
+        public string EstadoColor => Estado switch
+        {
+            "Pendiente" => "#F59E0B",
+            "Confirmada" => "#2563EB",
+            "En proceso" => "#7C3AED",
+            "Finalizada" => "#16A34A",
+            "Cancelada" => "#DC2626",
+            _ => "#64748B"
+        };
+    }
+}

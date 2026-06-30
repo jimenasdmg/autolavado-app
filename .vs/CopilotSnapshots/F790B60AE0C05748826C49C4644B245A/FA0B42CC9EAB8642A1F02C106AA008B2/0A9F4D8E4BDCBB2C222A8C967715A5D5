@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.EmpleadoHomePage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,24,20,24" Spacing="14">
+            <Border BackgroundColor="#0B1F4D"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16,14">
+                <Border.Shadow>
+                    <Shadow Brush="#22000000" Offset="0,5" Radius="12" />
+                </Border.Shadow>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="2">
+                    <Label Text="BRIZZO"
+                           FontSize="24"
+                           CharacterSpacing="2"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label Grid.Row="1"
+                           Text="Panel de empleado"
+                           FontSize="14"
+                           TextColor="#BFDBFE" />
+                    <Border Grid.Column="1"
+                            Grid.RowSpan="2"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            BackgroundColor="#1E3A8A"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 22"
+                            HorizontalOptions="End">
+                        <Label Text="🧰"
+                               FontSize="20"
+                               HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Hola, {Binding NombreEmpleado}"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D" />
+                    <Label Text="Gestiona tus servicios asignados y revisa citas pendientes."
+                           FontSize="14"
+                           TextColor="#64748B" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Pendientes" FontSize="13" TextColor="#64748B" />
+                        <Label Text="{Binding CitasPendientes}"
+                               FontSize="24"
+                               FontAttributes="Bold"
+                               TextColor="#F59E0B" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="Finalizadas" FontSize="13" TextColor="#64748B" />
+                        <Label Text="{Binding CitasFinalizadas}"
+                               FontSize="24"
+                               FontAttributes="Bold"
+                               TextColor="#16A34A" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <Button Text="Mis citas asignadas"
+                    HeightRequest="48"
+                    CornerRadius="12"
+                    BackgroundColor="#3B82F6"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    Command="{Binding IrMisCitasCommand}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

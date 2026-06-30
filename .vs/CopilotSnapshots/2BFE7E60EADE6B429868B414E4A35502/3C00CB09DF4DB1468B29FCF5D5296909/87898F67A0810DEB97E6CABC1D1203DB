@@ -1,0 +1,35 @@
+﻿namespace AutoLavadoApp
+{
+    public partial class App : Application
+    {
+        private readonly Services.SessionService _sessionService;
+
+        public App(Services.SessionService sessionService)
+        {
+            InitializeComponent();
+            _sessionService = sessionService;
+        }
+
+        protected override Window CreateWindow(IActivationState? activationState)
+        {
+            var hasSession = _sessionService.TieneSesionActivaAsync().GetAwaiter().GetResult();
+            var rol = _sessionService.ObtenerRol();
+
+            var initialPage = hasSession
+                ? new NavigationPage(ResolverHomePorRol(rol))
+                : new NavigationPage(new LoginPage());
+
+            return new Window(initialPage);
+        }
+
+        private static Page ResolverHomePorRol(string rol)
+        {
+            return rol switch
+            {
+                "empleado" => new EmpleadoHomePage(),
+                "admin" => new AdminHomePage(),
+                _ => new HomePage()
+            };
+        }
+    }
+}

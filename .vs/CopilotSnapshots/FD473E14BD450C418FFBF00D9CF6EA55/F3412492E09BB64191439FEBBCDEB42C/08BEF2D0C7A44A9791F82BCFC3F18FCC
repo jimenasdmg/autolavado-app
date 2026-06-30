@@ -1,0 +1,112 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class VehiculoService : FirestoreBaseService
+    {
+        private const string Collection = "vehiculos";
+
+        public VehiculoService(HttpClient httpClient)
+            : base(httpClient)
+        {
+        }
+
+        public async Task<List<Vehiculo>> ObtenerVehiculosPorUsuarioAsync(string usuarioId)
+        {
+            var url = BuildDocumentUrl(Collection);
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return new List<Vehiculo>();
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+
+            var result = new List<Vehiculo>();
+            if (!doc.RootElement.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var parsed = ParseVehiculo(d);
+                if (parsed is null) continue;
+                if (parsed.UsuarioId == usuarioId || parsed.ClienteId == usuarioId) result.Add(parsed);
+            }
+
+            return result;
+        }
+
+        public async Task<bool> GuardarVehiculoAsync(Vehiculo vehiculo)
+        {
+            if (string.IsNullOrWhiteSpace(vehiculo.Id))
+            {
+                vehiculo.Id = Guid.NewGuid().ToString("N");
+            }
+
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["id"] = new { stringValue = vehiculo.Id },
+                    ["usuarioId"] = new { stringValue = vehiculo.UsuarioId ?? string.Empty },
+                    ["clienteId"] = new { stringValue = vehiculo.ClienteId ?? string.Empty },
+                    ["placa"] = new { stringValue = vehiculo.Placa ?? string.Empty },
+                    ["marca"] = new { stringValue = vehiculo.Marca ?? string.Empty },
+                    ["modelo"] = new { stringValue = vehiculo.Modelo ?? string.Empty },
+                    ["color"] = new { stringValue = vehiculo.Color ?? string.Empty },
+                    ["anio"] = new { integerValue = vehiculo.Anio }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, vehiculo.Id);
+        }
+
+        public async Task<bool> EliminarVehiculoAsync(string vehiculoId)
+        {
+            var response = await _httpClient.DeleteAsync(BuildDocumentUrl(Collection, vehiculoId));
+            return response.IsSuccessStatusCode;
+        }
+
+        private static Vehiculo? ParseVehiculo(JsonElement doc)
+        {
+            if (!doc.TryGetProperty("fields", out var f)) return null;
+
+            var name = doc.TryGetProperty("name", out var n) ? n.GetString() : null;
+            var id = ReadString(f, "id");
+            if (string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name))
+            {
+                id = name.Split('/').Last();
+            }
+
+            return new Vehiculo
+            {
+                Id = id ?? string.Empty,
+                UsuarioId = ReadString(f, "usuarioId"),
+                ClienteId = ReadString(f, "clienteId"),
+                Placa = ReadString(f, "placa") ?? ReadString(f, "placas") ?? string.Empty,
+                Marca = ReadString(f, "marca") ?? string.Empty,
+                Modelo = ReadString(f, "modelo") ?? string.Empty,
+                Color = ReadString(f, "color") ?? string.Empty,
+                Anio = ReadInt(f, "anio")
+            };
+        }
+
+        private static string? ReadString(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+            return null;
+        }
+
+        private static int ReadInt(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("integerValue", out var i) && int.TryParse(i.GetString(), out var n)) return n;
+            return 0;
+        }
+    }
+}

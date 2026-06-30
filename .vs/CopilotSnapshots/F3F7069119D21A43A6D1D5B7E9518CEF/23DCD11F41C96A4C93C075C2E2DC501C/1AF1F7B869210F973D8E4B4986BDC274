@@ -1,0 +1,34 @@
+﻿using AutoLavadoApp.ViewModels.Admin;
+
+namespace AutoLavadoApp;
+
+public partial class AdminEmpleadoHistorialPage : ContentPage
+{
+    private readonly AdminViewModel _viewModel;
+    private readonly string _empleadoId;
+
+    public AdminEmpleadoHistorialPage(string empleadoId, string nombre)
+    {
+        InitializeComponent();
+        _empleadoId = empleadoId;
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AdminViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AdminViewModel desde DI.");
+
+        TituloLabel.Text = $"Historial de {nombre}";
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        try
+        {
+            var lista = await _viewModel.ObtenerHistorialEmpleadoAsync(_empleadoId);
+            HistorialCollection.ItemsSource = lista;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HISTORIAL][ADMIN] error: {ex}");
+            await DisplayAlertAsync("Error", "No fue posible cargar el historial del empleado.", "OK");
+        }
+    }
+}

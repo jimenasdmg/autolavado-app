@@ -1,0 +1,289 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Constants;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class CitaService : FirestoreBaseService
+    {
+        private const string Collection = FirestoreCollections.Citas;
+
+        public CitaService(HttpClient httpClient) : base(httpClient)
+        {
+        }
+
+        public async Task<bool> CrearCitaAsync(Cita cita, string? idToken = null)
+        {
+            if (cita is null || string.IsNullOrWhiteSpace(idToken))
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(cita.ClienteId)
+                || string.IsNullOrWhiteSpace(cita.ServicioId)
+                || string.IsNullOrWhiteSpace(cita.VehiculoId)
+                || cita.Fecha == default
+                || string.IsNullOrWhiteSpace(cita.Hora)
+                || (string.Equals(cita.Modalidad, TiposServicioCita.Domicilio, StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrWhiteSpace(cita.Direccion)))
+            {
+                return false;
+            }
+
+            cita.Id = string.Empty;
+
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["id"] = new { stringValue = string.Empty },
+                    ["clienteId"] = new { stringValue = (cita.ClienteId ?? cita.UsuarioId) ?? string.Empty },
+                    ["clienteNombre"] = new { stringValue = cita.ClienteNombre ?? string.Empty },
+                    ["clienteCorreo"] = new { stringValue = cita.ClienteCorreo ?? string.Empty },
+                    ["usuarioId"] = new { stringValue = cita.UsuarioId ?? string.Empty },
+                    ["vehiculoId"] = new { stringValue = cita.VehiculoId ?? string.Empty },
+                    ["vehiculoNombre"] = new { stringValue = cita.VehiculoNombre ?? cita.Vehiculo ?? string.Empty },
+                    ["servicioId"] = new { stringValue = cita.ServicioId ?? string.Empty },
+                    ["servicioNombre"] = new { stringValue = cita.ServicioNombre ?? string.Empty },
+                    ["servicioPrecio"] = new { doubleValue = (double)cita.Precio },
+                    ["servicioDuracion"] = new { integerValue = cita.HorarioDisponible },
+                    ["empleadoId"] = new { stringValue = cita.EmpleadoId ?? string.Empty },
+                    ["empleadoNombre"] = new { stringValue = cita.EmpleadoNombre ?? string.Empty },
+                    ["fecha"] = new { stringValue = cita.Fecha.ToString("yyyy-MM-dd") },
+                    ["hora"] = new { stringValue = cita.Hora ?? string.Empty },
+                    ["estado"] = new { stringValue = cita.Estado ?? EstadosCita.Pendiente },
+                    ["observaciones"] = new { stringValue = cita.Observaciones ?? string.Empty },
+                    ["modalidad"] = new { stringValue = cita.Modalidad ?? cita.TipoServicio ?? TiposServicioCita.Sucursal },
+                    ["direccion"] = new { stringValue = cita.Direccion ?? string.Empty },
+                    ["vehiculoMarca"] = new { stringValue = cita.Ciudad ?? string.Empty },
+                    ["vehiculoModelo"] = new { stringValue = cita.NotasAdicionales ?? string.Empty },
+                    ["vehiculoPlacas"] = new { stringValue = cita.Placas ?? string.Empty },
+                    ["fechaCreacion"] = new { timestampValue = (cita.FechaCreacion == default ? DateTime.UtcNow : cita.FechaCreacion.ToUniversalTime()).ToString("O") }
+                }
+            };
+
+            var nuevoId = await CrearDocumentoConIdAutomaticoAsync(Collection, body, idToken);
+            cita.Id = nuevoId ?? string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(cita.Id))
+            {
+                var patchId = new
+                {
+                    fields = new Dictionary<string, object>
+                    {
+                        ["id"] = new { stringValue = cita.Id }
+                    }
+                };
+
+                _ = await CrearDocumentoAsync(Collection, patchId, cita.Id, idToken);
+            }
+
+            return true;
+        }
+
+        public async Task<List<Cita>> ObtenerCitasPorUsuarioAsync(string usuarioId, string? idToken = null)
+        {
+            var doc = await ObtenerColeccionAsync(Collection, idToken);
+            if (doc is null) return new List<Cita>();
+
+            var result = new List<Cita>();
+            if (!doc.Value.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var cita = ParseCita(d);
+                if (cita is null) continue;
+                if (cita.UsuarioId == usuarioId || cita.ClienteId == usuarioId) result.Add(cita);
+            }
+
+            return result.OrderByDescending(x => x.Fecha).ToList();
+        }
+
+        public async Task<List<Cita>> ObtenerTodasCitasAsync(string idToken)
+        {
+            var doc = await ObtenerColeccionAsync(Collection, idToken);
+            if (doc is null) return new List<Cita>();
+
+            var result = new List<Cita>();
+            if (!doc.Value.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var cita = ParseCita(d);
+                if (cita is not null) result.Add(cita);
+            }
+
+            return result.OrderByDescending(x => x.Fecha).ToList();
+        }
+
+        public async Task<Cita?> ObtenerPorIdAsync(string citaId, string? idToken = null)
+        {
+            var doc = await ObtenerDocumentoAsync(Collection, citaId, idToken);
+            if (doc is null) return null;
+            return ParseCita(doc.Value);
+        }
+
+        public async Task<bool> CancelarCitaAsync(string citaId, string idToken)
+        {
+            return await CambiarEstadoAsync(citaId, EstadosCita.Cancelada, idToken);
+        }
+
+        public async Task<bool> ConfirmarCitaAsync(string citaId, string idToken)
+        {
+            return await CambiarEstadoAsync(citaId, EstadosCita.Aceptada, idToken);
+        }
+
+        public async Task<bool> IniciarServicioCitaAsync(string citaId, string idToken)
+        {
+            return await CambiarEstadoAsync(citaId, EstadosCita.Lavando, idToken);
+        }
+
+        public async Task<bool> FinalizarCitaAsync(string citaId, string idToken)
+        {
+            return await CambiarEstadoAsync(citaId, EstadosCita.Finalizada, idToken);
+        }
+
+        public async Task<bool> AsignarEmpleadoAsync(string citaId, string empleadoId, string empleadoNombre, string idToken)
+        {
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["empleadoId"] = new { stringValue = empleadoId ?? string.Empty },
+                    ["empleadoNombre"] = new { stringValue = empleadoNombre ?? string.Empty },
+                    ["estado"] = new { stringValue = EstadosCita.EmpleadoAsignado }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, citaId, idToken);
+        }
+
+        public async Task<bool> ActualizarEstadoTrackingAsync(string citaId, string nuevoEstado, string idToken)
+        {
+            return await CambiarEstadoAsync(citaId, nuevoEstado, idToken);
+        }
+
+        public async Task<bool> ReagendarCitaAsync(string citaId, DateTime nuevaFecha, string nuevaHora, string? idToken = null)
+        {
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["fecha"] = new { stringValue = nuevaFecha.ToString("yyyy-MM-dd") },
+                    ["hora"] = new { stringValue = nuevaHora }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, citaId, idToken);
+        }
+
+        private async Task<bool> CambiarEstadoAsync(string citaId, string estado, string? idToken = null)
+        {
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["estado"] = new { stringValue = estado }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, citaId, idToken);
+        }
+
+        private static Cita? ParseCita(JsonElement doc)
+        {
+            if (!doc.TryGetProperty("fields", out var f)) return null;
+
+            var name = doc.TryGetProperty("name", out var n) ? n.GetString() : null;
+            var id = ReadString(f, "id");
+            if (string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name)) id = name.Split('/').Last();
+
+            var fechaText = ReadString(f, "fecha");
+            DateTime.TryParse(fechaText, out var fecha);
+
+            var usuarioId = ReadString(f, "usuarioId") ?? string.Empty;
+            var clienteId = ReadString(f, "clienteId") ?? usuarioId;
+
+            return new Cita
+            {
+                Id = id ?? string.Empty,
+                ClienteId = clienteId,
+                ClienteNombre = ReadString(f, "clienteNombre") ?? string.Empty,
+                ClienteCorreo = ReadString(f, "clienteCorreo") ?? string.Empty,
+                UsuarioId = usuarioId,
+                VehiculoId = ReadString(f, "vehiculoId") ?? string.Empty,
+                ServicioId = ReadString(f, "servicioId") ?? string.Empty,
+                ServicioNombre = ReadString(f, "servicioNombre") ?? string.Empty,
+                Precio = ReadDecimalAny(f, "servicioPrecio", "precio"),
+                EmpleadoId = ReadString(f, "empleadoId") ?? string.Empty,
+                EmpleadoNombre = ReadString(f, "empleadoNombre") ?? string.Empty,
+                Fecha = fecha == default ? DateTime.Today : fecha,
+                Hora = ReadString(f, "hora") ?? string.Empty,
+                Estado = ReadString(f, "estado") ?? EstadosCita.Pendiente,
+                Observaciones = ReadString(f, "observaciones") ?? string.Empty,
+                Modalidad = ReadString(f, "modalidad") ?? TiposServicioCita.Sucursal,
+                Direccion = ReadString(f, "direccion") ?? string.Empty,
+                HorarioDisponible = ReadString(f, "servicioDuracion") ?? string.Empty,
+                Ciudad = ReadString(f, "vehiculoMarca") ?? string.Empty,
+                NotasAdicionales = ReadString(f, "vehiculoModelo") ?? string.Empty,
+                Placas = ReadString(f, "vehiculoPlacas") ?? ReadString(f, "placas") ?? string.Empty,
+                VehiculoNombre = $"{ReadString(f, "vehiculoMarca") ?? string.Empty} {ReadString(f, "vehiculoModelo") ?? string.Empty}".Trim(),
+                FechaCreacion = ReadTimestamp(f, "fechaCreacion") ?? DateTime.UtcNow
+            };
+        }
+
+        private static string? ReadString(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+            return null;
+        }
+
+        private static double? ReadDouble(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("doubleValue", out var d)) return d.GetDouble();
+            if (v.TryGetProperty("integerValue", out var i) && double.TryParse(i.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedInt)) return parsedInt;
+            if (v.TryGetProperty("stringValue", out var s) && double.TryParse(s.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedString)) return parsedString;
+            return null;
+        }
+
+        private static decimal ReadDecimal(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("doubleValue", out var d) && d.TryGetDouble(out var dv)) return (decimal)dv;
+            if (v.TryGetProperty("integerValue", out var i) && decimal.TryParse(i.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var iv)) return iv;
+            if (v.TryGetProperty("stringValue", out var s) && decimal.TryParse(s.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var sv)) return sv;
+            return 0;
+        }
+
+        private static decimal ReadDecimalAny(JsonElement fields, params string[] keys)
+        {
+            foreach (var key in keys)
+            {
+                var value = ReadDecimal(fields, key);
+                if (value != 0)
+                {
+                    return value;
+                }
+            }
+
+            return 0;
+        }
+
+        private static DateTime? ReadTimestamp(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (!v.TryGetProperty("timestampValue", out var ts)) return null;
+            if (!DateTime.TryParse(ts.GetString(), out var parsed)) return null;
+            return parsed;
+        }
+    }
+}

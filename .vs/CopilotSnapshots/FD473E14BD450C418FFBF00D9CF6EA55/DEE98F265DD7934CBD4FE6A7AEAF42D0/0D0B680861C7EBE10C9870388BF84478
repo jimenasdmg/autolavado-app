@@ -1,0 +1,98 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class ServicioService : FirestoreBaseService
+    {
+        private const string Coleccion = "servicios";
+
+        public ServicioService(HttpClient httpClient)
+            : base(httpClient, "autolavadoapp-58dc3")
+        {
+        }
+
+        public async Task<List<Servicio>> ObtenerServiciosActivosAsync()
+        {
+            var url = BuildDocumentUrl(Coleccion);
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return new List<Servicio>();
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            var lista = new List<Servicio>();
+            if (!doc.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+                return lista;
+
+            foreach (var d in docs.EnumerateArray())
+            {
+                var s = ParseServicio(d);
+                if (s is not null && s.Activo) lista.Add(s);
+            }
+
+            return lista;
+        }
+
+        private static Servicio? ParseServicio(JsonElement d)
+        {
+            try
+            {
+                var s = new Servicio
+                {
+                    Id = Read(d, "Id", "id"),
+                    Nombre = Read(d, "Nombre", "nombre"),
+                    Descripcion = Read(d, "Descripcion", "descripción", "descripcion"),
+                    Activo = ReadBool(d, "Activo", "activo")
+                };
+
+                var precio = Read(d, "Precio", "precio");
+                s.Precio = decimal.TryParse(precio, out var p) ? p : 0;
+
+                var dur = Read(d, "DuracionMinutos", "duracionMinutos", "duración");
+                s.DuracionMinutos = int.TryParse(dur, out var dm) ? dm : 0;
+
+                if (string.IsNullOrWhiteSpace(s.Id) && d.TryGetProperty("name", out var nameProp))
+                {
+                    var full = nameProp.GetString() ?? string.Empty;
+                    s.Id = full.Split('/').LastOrDefault() ?? string.Empty;
+                }
+
+                return s;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string Read(JsonElement doc, params string[] keys)
+        {
+            foreach (var key in keys)
+            {
+                if (doc.TryGetProperty(key, out var plain)) return plain.ToString();
+
+                if (doc.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object && fields.TryGetProperty(key, out var f))
+                {
+                    if (f.TryGetProperty("stringValue", out var s)) return s.GetString() ?? string.Empty;
+                    if (f.TryGetProperty("integerValue", out var i)) return i.ToString();
+                    if (f.TryGetProperty("doubleValue", out var d)) return d.ToString();
+                    if (f.TryGetProperty("booleanValue", out var b)) return b.GetBoolean().ToString();
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static bool ReadBool(JsonElement doc, params string[] keys)
+        {
+            var txt = Read(doc, keys);
+            return bool.TryParse(txt, out var b) && b;
+        }
+    }
+}

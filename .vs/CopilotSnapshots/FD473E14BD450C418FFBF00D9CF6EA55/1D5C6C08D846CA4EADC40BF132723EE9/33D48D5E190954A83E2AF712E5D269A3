@@ -1,0 +1,67 @@
+﻿using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            });
+
+#if DEBUG
+        builder.Logging.AddDebug();
+#endif
+
+        // Servicios base
+        builder.Services.AddSingleton<HttpClient>();
+        builder.Services.AddSingleton<SessionService>();
+        builder.Services.AddSingleton<UsuarioService>();
+        builder.Services.AddSingleton<VehiculoService>();
+        builder.Services.AddSingleton<CitaService>();
+        builder.Services.AddSingleton<ServicioService>();
+        builder.Services.AddSingleton<EmpleadoService>();
+        builder.Services.AddSingleton<ObservacionService>();
+        builder.Services.AddSingleton<AuthService>();
+
+        // ViewModels
+        builder.Services.AddTransient<AutenticacionViewModel>();
+        builder.Services.AddTransient<RegisterViewModel>();
+        builder.Services.AddTransient<HomeViewModel>();
+        builder.Services.AddTransient<MiCuentaViewModel>();
+        builder.Services.AddTransient<MisVehiculosViewModel>();
+        builder.Services.AddTransient<AgregarVehiculoViewModel>();
+        builder.Services.AddTransient<AgendarCitaViewModel>();
+        builder.Services.AddTransient<MisCitasViewModel>();
+        builder.Services.AddTransient<CitaViewModel>();
+        builder.Services.AddTransient<DetalleCitaViewModel>();
+        builder.Services.AddTransient<AdminViewModel>();
+        builder.Services.AddTransient<CrearEmpleadoViewModel>();
+        builder.Services.AddTransient<EmpleadoViewModel>();
+
+        // Páginas
+        builder.Services.AddTransient<LoginPage>();
+        builder.Services.AddTransient<RegisterPage>();
+        builder.Services.AddTransient<HomePage>();
+        builder.Services.AddTransient<MiCuentaPage>();
+        builder.Services.AddTransient<MisVehiculosPage>();
+        builder.Services.AddTransient<AgregarVehiculoPage>();
+        builder.Services.AddTransient<AgendarCitaPage>();
+        builder.Services.AddTransient<MisCitasPage>();
+        builder.Services.AddTransient<DetalleCitaPage>();
+        builder.Services.AddTransient<AdminHomePage>();
+        builder.Services.AddTransient<AdminEmpleadosPage>();
+        builder.Services.AddTransient<AdminServiciosPage>();
+        builder.Services.AddTransient<AdminCuentaPage>();
+        builder.Services.AddTransient<EmpleadoHomePage>();
+
+        return builder.Build();
+    }
+}

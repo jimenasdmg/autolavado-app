@@ -1,0 +1,18 @@
+﻿namespace AutoLavadoApp
+{
+    public partial class App : Application
+    {
+        private readonly Services.SessionService _sessionService;
+
+        public App(Services.SessionService sessionService)
+        {
+            InitializeComponent();
+            _sessionService = sessionService;
+
+            // Si ya tienes AppShell en el proyecto, mantenemos MainPage y quitamos CreateWindow.
+            MainPage = new AppShell();
+        }
+
+        // IMPORTANTE: eliminar cualquier override CreateWindow(...) de esta clase.
+    }
+}

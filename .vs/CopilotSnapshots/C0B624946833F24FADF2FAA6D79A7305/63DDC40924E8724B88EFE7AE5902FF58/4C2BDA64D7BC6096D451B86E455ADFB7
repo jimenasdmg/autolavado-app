@@ -1,0 +1,402 @@
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels.Admin;
+
+public partial class AdminMensajesViewModel // mantener herencia existente
+{
+    private readonly SessionService _sessionService;
+    private readonly MensajeInternoService _mensajeService;
+    private string _uid = string.Empty;
+    private string _token = string.Empty;
+    private string _mensajeNuevo = string.Empty;
+    private string _errorDetalle = string.Empty;
+    private bool _isBusy;
+    private bool _tieneConversacionSeleccionada;
+    private string _chatIdActual = string.Empty;
+    private string _empleadoUidActual = string.Empty;
+    private string _empleadoNombreActual = string.Empty;
+    private string _prefillEmpleadoUid = string.Empty;
+    private CancellationTokenSource? _pollingCts;
+
+    public ObservableCollection<MensajeChatItem> MensajesActuales { get; } = new();
+    public ObservableCollection<MensajeInterno> Mensajes { get; } = new();
+
+    public ICommand EnviarMensajeCommand { get; }
+    public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public AdminMensajesViewModel(SessionService sessionService, MensajeInternoService mensajeService)
+    {
+        _sessionService = sessionService;
+        _mensajeService = mensajeService;
+
+        EnviarMensajeCommand = new Command(async () => await EnviarMensajeAsync());
+    }
+
+    public string MensajeNuevo
+    {
+        get => _mensajeNuevo;
+        set { if (_mensajeNuevo != value) { _mensajeNuevo = value; OnPropertyChanged(); } }
+    }
+
+    public string ErrorDetalle
+    {
+        get => _errorDetalle;
+        private set { if (_errorDetalle != value) { _errorDetalle = value; OnPropertyChanged(); OnPropertyChanged(nameof(TieneError)); } }
+    }
+
+    public bool TieneError => !string.IsNullOrWhiteSpace(ErrorDetalle);
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set { if (_isBusy != value) { _isBusy = value; OnPropertyChanged(); } }
+    }
+
+    public bool TieneConversacionSeleccionada
+    {
+        get => _tieneConversacionSeleccionada;
+        private set
+        {
+            if (_tieneConversacionSeleccionada != value)
+            {
+                _tieneConversacionSeleccionada = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ConversacionActualTitulo));
+            }
+        }
+    }
+
+    public string ConversacionActualTitulo => TieneConversacionSeleccionada
+        ? _empleadoNombreActual
+        : "Mensajes";
+
+    public string SubtituloConversacion => TieneConversacionSeleccionada ? "Empleado · Activo" : "Selecciona conversación";
+    public string InicialConversacion => string.IsNullOrWhiteSpace(_empleadoNombreActual) ? "E" : _empleadoNombreActual.Trim()[0].ToString().ToUpperInvariant();
+
+    public void ConfigurarEmpleadoObjetivo(string empleadoUid)
+    {
+        _prefillEmpleadoUid = empleadoUid ?? string.Empty;
+        _empleadoNombreActual = string.IsNullOrWhiteSpace(_empleadoNombreActual) ? "Empleado" : _empleadoNombreActual;
+    }
+
+    public void ConfigurarEmpleadoObjetivo(string empleadoUid, string empleadoNombre)
+    {
+        _prefillEmpleadoUid = empleadoUid ?? string.Empty;
+        _empleadoNombreActual = string.IsNullOrWhiteSpace(empleadoNombre) ? "Empleado" : empleadoNombre;
+    }
+
+    public async Task CargarAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var sesion = await _sessionService.ObtenerSesionActualAsync();
+            _uid = sesion.Uid;
+            _token = string.IsNullOrWhiteSpace(sesion.IdToken) ? await _sessionService.ObtenerTokenAsync() : sesion.IdToken;
+
+            if (string.IsNullOrWhiteSpace(_uid) || string.IsNullOrWhiteSpace(_token))
+            {
+                ErrorDetalle = "No hay una sesión válida para consultar mensajes.";
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Sesión", ErrorDetalle, "OK");
+                }
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_chatIdActual) && !string.IsNullOrWhiteSpace(_prefillEmpleadoUid))
+            {
+                _chatIdActual = MensajeService.BuildChatId(_prefillEmpleadoUid);
+                _empleadoUidActual = _prefillEmpleadoUid;
+                _empleadoNombreActual = string.IsNullOrWhiteSpace(_empleadoNombreActual) ? "Empleado" : _empleadoNombreActual;
+                TieneConversacionSeleccionada = true;
+                OnPropertyChanged(nameof(SubtituloConversacion));
+                OnPropertyChanged(nameof(InicialConversacion));
+            }
+
+            if (string.IsNullOrWhiteSpace(_empleadoUidActual) && !string.IsNullOrWhiteSpace(_prefillEmpleadoUid))
+            {
+                _empleadoUidActual = _prefillEmpleadoUid;
+            }
+
+            if (string.IsNullOrWhiteSpace(_chatIdActual))
+            {
+                ErrorDetalle = "Selecciona un empleado para abrir su chat.";
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+                }
+                return;
+            }
+
+            await CargarMensajesChatActualAsync(marcarLeidos: true);
+            OnPropertyChanged(nameof(SubtituloConversacion));
+            OnPropertyChanged(nameof(InicialConversacion));
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.Message;
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Error", ex.Message, "OK");
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task EnviarMensajeAsync()
+    {
+        if (IsBusy || !TieneConversacionSeleccionada)
+        {
+            return;
+        }
+
+        var texto = (MensajeNuevo ?? string.Empty).Trim();
+        if (texto.Length < 3)
+        {
+            ErrorDetalle = "Escribe un mensaje de al menos 3 caracteres.";
+            return;
+        }
+
+        if (texto.Length > 500)
+        {
+            ErrorDetalle = "El mensaje es demasiado largo. Máximo 500 caracteres.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_uid) || string.IsNullOrWhiteSpace(_token) || string.IsNullOrWhiteSpace(_empleadoUidActual))
+        {
+            ErrorDetalle = "No hay contexto válido para enviar el mensaje.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        if (SessionService.TokenExpirado(_token))
+        {
+            ErrorDetalle = "Tu sesión expiró. Inicia sesión nuevamente.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Sesión", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        if (string.Equals(_uid, _empleadoUidActual, StringComparison.Ordinal))
+        {
+            ErrorDetalle = "No puedes enviarte mensajes a ti mismo.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_chatIdActual))
+        {
+            ErrorDetalle = "No hay una conversación válida para enviar mensajes.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        var chatEsperado = MensajeService.BuildChatId(_empleadoUidActual);
+        if (!string.Equals(_chatIdActual, chatEsperado, StringComparison.Ordinal))
+        {
+            _chatIdActual = chatEsperado;
+        }
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var ok = await _mensajeService.EnviarMensajeAsync(new MensajeInterno
+            {
+                ChatId = _chatIdActual,
+                RemitenteUid = _uid,
+                RemitenteNombre = "Administrador",
+                DestinatarioUid = _empleadoUidActual,
+                DestinatarioNombre = _empleadoNombreActual,
+                Mensaje = texto,
+                Fecha = DateTime.UtcNow,
+                Leido = false
+            }, _token);
+
+            if (!ok)
+            {
+                ErrorDetalle = "No fue posible enviar el mensaje.";
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+                }
+                return;
+            }
+
+            MensajeNuevo = string.Empty;
+            await CargarMensajesChatActualAsync(marcarLeidos: false);
+            OnPropertyChanged(nameof(ScrollToLastRequest));
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.Message;
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Error", ex.Message, "OK");
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task CargarMensajesChatActualAsync(bool marcarLeidos)
+    {
+        if (string.IsNullOrWhiteSpace(_chatIdActual))
+        {
+            return;
+        }
+
+        var mensajes = await _mensajeService.ObtenerMensajesAsync(_chatIdActual, _token);
+        MensajesActuales.Clear();
+
+        foreach (var item in mensajes)
+        {
+            MensajesActuales.Add(new MensajeChatItem
+            {
+                Id = item.Id,
+                Mensaje = item.Mensaje,
+                Fecha = item.Fecha,
+                EsPropio = string.Equals(item.RemitenteUid, _uid, StringComparison.Ordinal)
+            });
+        }
+
+        if (marcarLeidos)
+        {
+            await _mensajeService.MarcarComoLeidoAsync(_chatIdActual, _uid, _token);
+        }
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    public object? ScrollToLastRequest => MensajesActuales.Count > 0 ? MensajesActuales[^1] : null;
+
+    public string AdminUid { get; set; } = string.Empty;
+    public string EmpleadoUidSeleccionado { get; set; } = string.Empty;
+    public string EmpleadoNombreSeleccionado { get; set; } = string.Empty;
+    public string TextoMensaje { get; set; } = string.Empty;
+    public int NoLeidosCount { get; set; }
+
+    public string ConversacionIdActual =>
+        string.IsNullOrWhiteSpace(AdminUid) || string.IsNullOrWhiteSpace(EmpleadoUidSeleccionado)
+            ? string.Empty
+            : MensajeService.ConstruirConversacionId(AdminUid, EmpleadoUidSeleccionado);
+
+    public async Task InicializarMensajesAsync(string adminUid, string empleadoUid, string empleadoNombre)
+    {
+        AdminUid = adminUid;
+        EmpleadoUidSeleccionado = empleadoUid;
+        EmpleadoNombreSeleccionado = empleadoNombre;
+
+        Debug.WriteLine($"[MENSAJES][ADMIN][INIT] admin={AdminUid} empleado={EmpleadoUidSeleccionado} conv={ConversacionIdActual}");
+
+        await RefrescarMensajesAsync();
+        IniciarPolling();
+    }
+
+    public async Task RefrescarMensajesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ConversacionIdActual)) return;
+        if (string.IsNullOrWhiteSpace(IdToken)) return; // usar token existente del VM
+
+        var mensajes = await _mensajeService.ObtenerMensajesAsync(ConversacionIdActual, IdToken);
+        Mensajes.Clear();
+        foreach (var m in mensajes)
+            Mensajes.Add(m);
+
+        await _mensajeService.MarcarComoLeidoAsync(ConversacionIdActual, AdminUid, IdToken);
+        NoLeidosCount = await _mensajeService.ContarNoLeidosAsync(AdminUid, IdToken);
+    }
+
+    public async Task<bool> EnviarMensajeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(TextoMensaje)) return false;
+        if (string.IsNullOrWhiteSpace(IdToken)) return false;
+
+        var ok = await _mensajeService.EnviarMensajeAsync(
+            AdminUid,
+            AdminUid,
+            "admin",
+            EmpleadoUidSeleccionado,
+            TextoMensaje,
+            IdToken);
+
+        Debug.WriteLine($"[MENSAJES][ADMIN][SEND] ok={ok} conv={ConversacionIdActual} from={AdminUid} to={EmpleadoUidSeleccionado}");
+
+        if (ok)
+        {
+            TextoMensaje = string.Empty;
+            await RefrescarMensajesAsync();
+        }
+
+        return ok;
+    }
+
+    public void IniciarPolling()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await RefrescarMensajesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MENSAJES][ADMIN][POLL][ERROR] {ex.Message}");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), token);
+            }
+        }, token);
+    }
+
+    public void DetenerPolling() => _pollingCts?.Cancel();
+}
+
+public class MensajeChatItem
+{
+    public string Id { get; set; } = string.Empty;
+    public string Mensaje { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public bool EsPropio { get; set; }
+    public string Fondo => EsPropio ? "#2563EB" : "#E2E8F0";
+    public string ColorTexto => EsPropio ? "White" : "#0F172A";
+    public LayoutOptions Alineacion => EsPropio ? LayoutOptions.End : LayoutOptions.Start;
+}

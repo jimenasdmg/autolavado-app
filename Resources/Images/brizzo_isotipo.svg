@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0D1B3D"/>
+      <stop offset="100%" stop-color="#1E88E5"/>
+    </linearGradient>
+    <linearGradient id="car" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#D8E6FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="256" height="256" rx="56" fill="url(#bg)"/>
+
+  <path d="M62 150 L82 109 C87 96 97 88 111 88 H148 C161 88 172 95 177 108 L195 150" fill="none" stroke="url(#car)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M55 151 H201" stroke="url(#car)" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="90" cy="163" r="12" fill="#FFFFFF"/>
+  <circle cx="166" cy="163" r="12" fill="#FFFFFF"/>
+
+  <path d="M98 63 C117 48 140 48 159 63" stroke="#3AB2FF" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M108 47 C121 37 136 37 149 47" stroke="#6FD0FF" stroke-width="6" fill="none" stroke-linecap="round"/>
+</svg>

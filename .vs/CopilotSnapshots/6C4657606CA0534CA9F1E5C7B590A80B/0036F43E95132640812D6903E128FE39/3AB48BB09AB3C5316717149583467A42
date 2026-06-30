@@ -1,0 +1,88 @@
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.Services.Auth;
+using AutoLavadoApp.Services.Core;
+using AutoLavadoApp.Services.Data;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class CitaViewModel : INotifyPropertyChanged
+    {
+        private int _siguienteId = 1;
+        private readonly AutoLavadoApp.Services.Data.CitaService _citaService;
+        private readonly AutoLavadoApp.Services.Core.SessionService _sessionService;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public CitaViewModel(AutoLavadoApp.Services.Data.CitaService citaService, AutoLavadoApp.Services.Core.SessionService sessionService)
+        {
+            _citaService = citaService;
+            _sessionService = sessionService;
+        }
+
+        public ObservableCollection<Cita> Citas { get; } = new ObservableCollection<Cita>();
+
+        public void AgendarCita(Cita cita)
+        {
+            if (cita == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(cita.Id))
+            {
+                cita.Id = _siguienteId++.ToString();
+            }
+
+            if (string.IsNullOrWhiteSpace(cita.Estado))
+            {
+                cita.Estado = "Agendada";
+            }
+
+            Citas.Add(cita);
+            OnPropertyChanged(nameof(Citas));
+        }
+
+        public bool CancelarCita(int citaId)
+        {
+            var cita = Citas.FirstOrDefault(c => c.Id == citaId.ToString());
+            if (cita == null)
+            {
+                return false;
+            }
+
+            cita.Estado = "Cancelada";
+            OnPropertyChanged(nameof(Citas));
+            return true;
+        }
+
+        public IEnumerable<Cita> ObtenerCitas()
+        {
+            return Citas;
+        }
+
+        public async Task CrearCitaAsync(string clienteId)
+        {
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            if (AutoLavadoApp.Services.Core.SessionService.TokenExpirado(idToken))
+            {
+                throw new UnauthorizedAccessException("El token de sesión expiró. Inicia sesión nuevamente.");
+            }
+
+            await _citaService.CrearCitaAsync(DateTime.UtcNow, "Agendada", clienteId, idToken);
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

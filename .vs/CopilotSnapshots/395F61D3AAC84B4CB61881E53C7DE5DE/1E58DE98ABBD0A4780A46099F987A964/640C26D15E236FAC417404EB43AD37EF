@@ -1,0 +1,239 @@
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Windows.Input;
+using AutoLavadoApp.Constants;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels.Empleado;
+
+public class EmpleadoMensajesViewModel : INotifyPropertyChanged
+{
+    private readonly SessionService _sessionService;
+    private readonly UsuarioService _usuarioService;
+    private readonly MensajeService _mensajeService;
+
+    private string _uid = string.Empty;
+    private string _token = string.Empty;
+    private string _adminUid = string.Empty;
+    private string _adminNombre = "Administrador";
+    private string _mensajeNuevo = string.Empty;
+    private string _errorDetalle = string.Empty;
+    private bool _isBusy;
+    private bool _mostrarEntrada;
+
+    public ObservableCollection<MensajeEmpleadoItem> Mensajes { get; } = new();
+
+    public ICommand EnviarMensajeCommand { get; }
+    public ICommand RecargarCommand { get; }
+    public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public EmpleadoMensajesViewModel(SessionService sessionService, UsuarioService usuarioService, MensajeService mensajeService)
+    {
+        _sessionService = sessionService;
+        _usuarioService = usuarioService;
+        _mensajeService = mensajeService;
+
+        EnviarMensajeCommand = new Command(async () => await EnviarMensajeAsync());
+        RecargarCommand = new Command(async () => await CargarAsync());
+    }
+
+    public string MensajeNuevo
+    {
+        get => _mensajeNuevo;
+        set { if (_mensajeNuevo != value) { _mensajeNuevo = value; OnPropertyChanged(); } }
+    }
+
+    public string ErrorDetalle
+    {
+        get => _errorDetalle;
+        private set { if (_errorDetalle != value) { _errorDetalle = value; OnPropertyChanged(); OnPropertyChanged(nameof(TieneError)); } }
+    }
+
+    public bool TieneError => !string.IsNullOrWhiteSpace(ErrorDetalle);
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set { if (_isBusy != value) { _isBusy = value; OnPropertyChanged(); } }
+    }
+
+    public bool MostrarEntrada
+    {
+        get => _mostrarEntrada;
+        private set { if (_mostrarEntrada != value) { _mostrarEntrada = value; OnPropertyChanged(); } }
+    }
+
+    public async Task CargarAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var sesion = await _sessionService.ObtenerSesionActualAsync();
+            _uid = sesion.Uid;
+            _token = string.IsNullOrWhiteSpace(sesion.IdToken) ? await _sessionService.ObtenerTokenAsync() : sesion.IdToken;
+
+            if (string.IsNullOrWhiteSpace(_uid) || string.IsNullOrWhiteSpace(_token))
+            {
+                ErrorDetalle = "No hay sesión activa.";
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Sesión", ErrorDetalle, "OK");
+                }
+                return;
+            }
+
+            MostrarEntrada = string.Equals(sesion.Rol, Roles.Empleado, StringComparison.OrdinalIgnoreCase);
+
+            var admin = await _usuarioService.ObtenerPrimerUsuarioPorRolAsync(Roles.Admin, _token);
+            if (admin is null || string.IsNullOrWhiteSpace(admin.Uid))
+            {
+                ErrorDetalle = "No se encontró un administrador disponible.";
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+                }
+                return;
+            }
+
+            _adminUid = admin.Uid;
+            _adminNombre = string.IsNullOrWhiteSpace(admin.Nombre) ? "Administrador" : admin.Nombre;
+
+            var chatId = MensajeService.BuildChatId(_uid);
+            var mensajes = await _mensajeService.ObtenerMensajesAsync(chatId, _token);
+
+            Mensajes.Clear();
+            foreach (var item in mensajes)
+            {
+                Mensajes.Add(new MensajeEmpleadoItem
+                {
+                    Mensaje = item.Mensaje,
+                    Fecha = item.Fecha,
+                    EsPropio = string.Equals(item.RemitenteUid, _uid, StringComparison.Ordinal)
+                });
+            }
+
+            await _mensajeService.MarcarComoLeidoAsync(chatId, _uid, _token);
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.Message;
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Error", ex.Message, "OK");
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task EnviarMensajeAsync()
+    {
+        if (IsBusy || !MostrarEntrada)
+        {
+            return;
+        }
+
+        var texto = (MensajeNuevo ?? string.Empty).Trim();
+        if (texto.Length < 3)
+        {
+            ErrorDetalle = "Escribe un mensaje de al menos 3 caracteres.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        if (texto.Length > 500)
+        {
+            ErrorDetalle = "El mensaje es demasiado largo. Máximo 500 caracteres.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_uid) || string.IsNullOrWhiteSpace(_adminUid) || string.IsNullOrWhiteSpace(_token))
+        {
+            ErrorDetalle = "No hay contexto de sesión para enviar el mensaje.";
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+            }
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var ok = await _mensajeService.EnviarMensajeAsync(new MensajeInterno
+            {
+                ChatId = MensajeService.BuildChatId(_uid),
+                RemitenteUid = _uid,
+                RemitenteNombre = sesionNombre(),
+                DestinatarioUid = _adminUid,
+                DestinatarioNombre = _adminNombre,
+                Mensaje = texto,
+                Fecha = DateTime.UtcNow,
+                Leido = false
+            }, _token);
+
+            if (!ok)
+            {
+                ErrorDetalle = "No fue posible enviar el mensaje.";
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Mensajes", ErrorDetalle, "OK");
+                }
+                return;
+            }
+
+            MensajeNuevo = string.Empty;
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.Message;
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Error", ex.Message, "OK");
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        string sesionNombre()
+        {
+            var n = _sessionService.ObtenerNombre();
+            return string.IsNullOrWhiteSpace(n) ? "Empleado" : n;
+        }
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}
+
+public class MensajeEmpleadoItem
+{
+    public string Mensaje { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public bool EsPropio { get; set; }
+    public string Fondo => EsPropio ? "#2563EB" : "#E2E8F0";
+    public string ColorTexto => EsPropio ? "White" : "#0F172A";
+    public LayoutOptions Alineacion => EsPropio ? LayoutOptions.End : LayoutOptions.Start;
+}

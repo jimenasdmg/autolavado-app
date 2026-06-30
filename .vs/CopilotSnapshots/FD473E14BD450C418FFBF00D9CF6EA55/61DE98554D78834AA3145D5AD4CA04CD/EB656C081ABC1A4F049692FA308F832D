@@ -1,0 +1,300 @@
+﻿using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class MiCuentaViewModel : INotifyPropertyChanged
+    {
+        private readonly UsuarioService _usuarioService;
+        private readonly SessionService _sessionService;
+
+        private string _nombre = string.Empty;
+        private string _apellidoPaterno = string.Empty;
+        private string _apellidoMaterno = string.Empty;
+        private string _email = string.Empty;
+        private string _rol = "cliente";
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public MiCuentaViewModel(UsuarioService usuarioService, SessionService sessionService)
+        {
+            _usuarioService = usuarioService;
+            _sessionService = sessionService;
+
+            IrMisVehiculosCommand = new Command(async () => await IrMisVehiculosAsync());
+            IrMisCitasCommand = new Command(async () => await IrMisCitasAsync());
+            EditarPerfilCommand = new Command(async () => await EditarPerfilAsync());
+            ConfiguracionCommand = new Command(async () => await IrConfiguracionAsync());
+            NotificacionesCommand = new Command(async () => await IrNotificacionesAsync());
+            PrivacidadCommand = new Command(async () => await IrPrivacidadAsync());
+            CerrarSesionCommand = new Command(async () => await CerrarSesionAsync(true), () => !IsBusy);
+        }
+
+        public ICommand IrMisVehiculosCommand { get; }
+        public ICommand IrMisCitasCommand { get; }
+        public ICommand EditarPerfilCommand { get; }
+        public ICommand ConfiguracionCommand { get; }
+        public ICommand NotificacionesCommand { get; }
+        public ICommand PrivacidadCommand { get; }
+        public ICommand CerrarSesionCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+        public Func<Task>? NavegarMisVehiculosAsync { get; set; }
+        public Func<Task>? NavegarMisCitasAsync { get; set; }
+        public Func<Task>? NavegarEditarPerfilAsync { get; set; }
+        public Func<Task>? NavegarLoginAsync { get; set; }
+        public Func<string, string, string, string, Task<bool>>? ConfirmarAccionAsync { get; set; }
+
+        public string Nombre
+        {
+            get => _nombre;
+            private set => SetProperty(ref _nombre, value);
+        }
+
+        public string ApellidoPaterno
+        {
+            get => _apellidoPaterno;
+            private set => SetProperty(ref _apellidoPaterno, value);
+        }
+
+        public string ApellidoMaterno
+        {
+            get => _apellidoMaterno;
+            private set => SetProperty(ref _apellidoMaterno, value);
+        }
+
+        public string Email
+        {
+            get => _email;
+            private set => SetProperty(ref _email, value);
+        }
+
+        public string Rol
+        {
+            get => _rol;
+            private set => SetProperty(ref _rol, value);
+        }
+
+        public string RolTexto => Rol switch
+        {
+            "admin" => "Administrador",
+            "empleado" => "Empleado",
+            _ => "Cliente"
+        };
+
+        public string InicialesUsuario
+        {
+            get
+            {
+                var baseNombre = string.IsNullOrWhiteSpace(Nombre)
+                    ? Email
+                    : $"{Nombre} {ApellidoPaterno}";
+
+                if (string.IsNullOrWhiteSpace(baseNombre))
+                {
+                    return "BR";
+                }
+
+                var partes = baseNombre
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                if (partes.Length == 1)
+                {
+                    return partes[0].Length >= 2
+                        ? partes[0][..2].ToUpperInvariant()
+                        : partes[0].ToUpperInvariant();
+                }
+
+                return $"{char.ToUpperInvariant(partes[0][0])}{char.ToUpperInvariant(partes[1][0])}";
+            }
+        }
+
+        public string NombreCompleto
+        {
+            get
+            {
+                var nombreCompleto = $"{Nombre} {ApellidoPaterno} {ApellidoMaterno}".Trim();
+                return string.IsNullOrWhiteSpace(nombreCompleto) ? "Cliente BRIZZO" : nombreCompleto;
+            }
+        }
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    ((Command)CerrarSesionCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public async Task CargarPerfilAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                await CerrarSesionAsync(false);
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var idToken = await _sessionService.ObtenerTokenAsync();
+
+                var usuario = await _usuarioService.ObtenerClientePorIdAsync(uid, idToken)
+                    ?? await _usuarioService.ObtenerUsuarioPorIdAsync(uid, idToken)
+                    ?? new Usuario
+                    {
+                        Id = uid,
+                        Email = _sessionService.ObtenerEmail()
+                    };
+
+                Nombre = usuario.Nombre;
+                ApellidoPaterno = usuario.ApellidoPaterno;
+                ApellidoMaterno = usuario.ApellidoMaterno;
+                Email = string.IsNullOrWhiteSpace(usuario.Email) ? _sessionService.ObtenerEmail() : usuario.Email;
+                Rol = string.IsNullOrWhiteSpace(usuario.Rol) ? "cliente" : usuario.Rol;
+
+                OnPropertyChanged(nameof(NombreCompleto));
+                OnPropertyChanged(nameof(RolTexto));
+                OnPropertyChanged(nameof(InicialesUsuario));
+            }
+            catch (FirebaseServiceException ex)
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", ex.Message, "OK");
+                }
+            }
+            catch
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", "No fue posible cargar tu perfil. Intenta nuevamente.", "OK");
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task IrMisVehiculosAsync()
+        {
+            if (NavegarMisVehiculosAsync != null)
+            {
+                await NavegarMisVehiculosAsync();
+            }
+        }
+
+        private async Task IrMisCitasAsync()
+        {
+            if (NavegarMisCitasAsync != null)
+            {
+                await NavegarMisCitasAsync();
+            }
+        }
+
+        private async Task EditarPerfilAsync()
+        {
+            if (NavegarEditarPerfilAsync != null)
+            {
+                await NavegarEditarPerfilAsync();
+                return;
+            }
+
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Editar perfil", "Próximamente podrás editar tu perfil.", "OK");
+            }
+        }
+
+        private async Task IrConfiguracionAsync()
+        {
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Configuración", "Próximamente podrás personalizar tu configuración.", "OK");
+            }
+        }
+
+        private async Task IrNotificacionesAsync()
+        {
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Notificaciones", "Próximamente podrás gestionar tus notificaciones.", "OK");
+            }
+        }
+
+        private async Task IrPrivacidadAsync()
+        {
+            if (MostrarAlertaAsync != null)
+            {
+                await MostrarAlertaAsync("Privacidad", "Próximamente podrás administrar tu privacidad.", "OK");
+            }
+        }
+
+        private async Task CerrarSesionAsync(bool solicitarConfirmacion)
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            var confirmar = !solicitarConfirmacion
+                || ConfirmarAccionAsync == null
+                || await ConfirmarAccionAsync("Cerrar sesión", "¿Deseas cerrar sesión en BRIZZO?", "Cerrar sesión", "Cancelar");
+
+            if (!confirmar)
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+                _sessionService.CerrarSesion();
+
+                if (NavegarLoginAsync != null)
+                {
+                    await NavegarLoginAsync();
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

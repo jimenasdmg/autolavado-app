@@ -1,0 +1,6 @@
+﻿namespace AutoLavadoApp.Views.Empleado;
+
+public class EmpleadoHomePage : global::AutoLavadoApp.EmpleadoHomePage { }
+public class EmpleadoCitasPage : global::AutoLavadoApp.EmpleadoCitasPage { }
+public class EmpleadoCuentaPage : global::AutoLavadoApp.EmpleadoCuentaPage { }
+public class EmpleadoMensajesPage : global::AutoLavadoApp.Views.Empleado.EmpleadoMensajesPage { }

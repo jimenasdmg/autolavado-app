@@ -1,0 +1,133 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\repositories\\interfaces\\imensajerepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:repositories\\interfaces\\imensajerepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\models\\empleado.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:models\\empleado.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\models\\vehiculo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:models\\vehiculo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\agendarcitapage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:agendarcitapage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\services\\citaservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:services\\citaservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\models\\usuario.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:models\\usuario.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|c:\\users\\jimen\\documents\\autolavadoapp\\empleadocitaspage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FFD59700-9FD1-65DA-055D-9A637CDF354D}|AutoLavadoApp.csproj|solutionrelative:empleadocitaspage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "IMensajeRepository.cs",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Repositories\\Interfaces\\IMensajeRepository.cs",
+              "RelativeDocumentMoniker": "Repositories\\Interfaces\\IMensajeRepository.cs",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Repositories\\Interfaces\\IMensajeRepository.cs",
+              "RelativeToolTip": "Repositories\\Interfaces\\IMensajeRepository.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAjAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-21T23:37:50.847Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Empleado.cs",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Models\\Empleado.cs",
+              "RelativeDocumentMoniker": "Models\\Empleado.cs",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Models\\Empleado.cs",
+              "RelativeToolTip": "Models\\Empleado.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-21T23:37:41.307Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Vehiculo.cs",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Models\\Vehiculo.cs",
+              "RelativeDocumentMoniker": "Models\\Vehiculo.cs",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Models\\Vehiculo.cs",
+              "RelativeToolTip": "Models\\Vehiculo.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-21T23:37:34.497Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "EmpleadoCitasPage.xaml",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\EmpleadoCitasPage.xaml",
+              "RelativeDocumentMoniker": "EmpleadoCitasPage.xaml",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\EmpleadoCitasPage.xaml",
+              "RelativeToolTip": "EmpleadoCitasPage.xaml",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAYwGQAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-05-20T19:17:25.859Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Usuario.cs",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Models\\Usuario.cs",
+              "RelativeDocumentMoniker": "Models\\Usuario.cs",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Models\\Usuario.cs",
+              "RelativeToolTip": "Models\\Usuario.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAABDAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-20T18:17:57.043Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "CitaService.cs",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Services\\CitaService.cs",
+              "RelativeDocumentMoniker": "Services\\CitaService.cs",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\Services\\CitaService.cs",
+              "RelativeToolTip": "Services\\CitaService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-20T18:23:36.833Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "AgendarCitaPage.xaml",
+              "DocumentMoniker": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\AgendarCitaPage.xaml",
+              "RelativeDocumentMoniker": "AgendarCitaPage.xaml",
+              "ToolTip": "C:\\Users\\jimen\\Documents\\AutoLavadoApp\\AgendarCitaPage.xaml",
+              "RelativeToolTip": "AgendarCitaPage.xaml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAABCAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-05-18T04:45:19.92Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.Services.Core;
+using AutoLavadoApp.Services.Data;
+
+namespace AutoLavadoApp.ViewModels;
+
+public class AgendarCitaViewModel : BaseViewModel
+{
+    private readonly CitaService _citaService;
+    private readonly ServicioService _servicioService;
+    private readonly VehiculoService _vehiculoService;
+    private readonly SessionService _sessionService;
+
+    public ObservableCollection<Servicio> Servicios { get; } = new();
+    public ObservableCollection<Vehiculo> Vehiculos { get; } = new();
+
+    private Servicio? _servicioSeleccionado;
+    public Servicio? ServicioSeleccionado
+    {
+        get => _servicioSeleccionado;
+        set => SetProperty(ref _servicioSeleccionado, value);
+    }
+
+    private Vehiculo? _vehiculoSeleccionado;
+    public Vehiculo? VehiculoSeleccionado
+    {
+        get => _vehiculoSeleccionado;
+        set => SetProperty(ref _vehiculoSeleccionado, value);
+    }
+
+    private DateTime _fecha = DateTime.Today;
+    public DateTime Fecha
+    {
+        get => _fecha;
+        set => SetProperty(ref _fecha, value);
+    }
+
+    private string _hora = "09:00";
+    public string Hora
+    {
+        get => _hora;
+        set => SetProperty(ref _hora, value);
+    }
+
+    private string _observaciones = string.Empty;
+    public string Observaciones
+    {
+        get => _observaciones;
+        set => SetProperty(ref _observaciones, value);
+    }
+
+    public ICommand CargarDatosCommand { get; }
+    public ICommand AgendarCommand { get; }
+
+    public AgendarCitaViewModel(CitaService citaService, ServicioService servicioService, VehiculoService vehiculoService, SessionService sessionService)
+    {
+        _citaService = citaService;
+        _servicioService = servicioService;
+        _vehiculoService = vehiculoService;
+        _sessionService = sessionService;
+
+        CargarDatosCommand = new Command(async () => await CargarDatosAsync());
+        AgendarCommand = new Command(async () => await AgendarAsync());
+    }
+
+    public async Task CargarDatosAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+
+            Servicios.Clear();
+            Vehiculos.Clear();
+
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                await Shell.Current.DisplayAlert("Sesión", "No se encontró sesión activa.", "OK");
+                return;
+            }
+
+            var servicios = await _servicioService.ObtenerServiciosActivosAsync();
+            foreach (var s in servicios)
+            {
+                Servicios.Add(s);
+            }
+
+            var vehiculos = await _vehiculoService.ObtenerVehiculosPorUsuarioAsync(uid);
+            foreach (var v in vehiculos)
+            {
+                Vehiculos.Add(v);
+            }
+
+            if (ServicioSeleccionado is null && Servicios.Count > 0)
+            {
+                ServicioSeleccionado = Servicios[0];
+            }
+
+            if (VehiculoSeleccionado is null && Vehiculos.Count > 0)
+            {
+                VehiculoSeleccionado = Vehiculos[0];
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task AgendarAsync()
+    {
+        if (IsBusy) return;
+
+        try
+        {
+            IsBusy = true;
+
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                await Shell.Current.DisplayAlert("Sesión", "No se encontró sesión activa.", "OK");
+                return;
+            }
+
+            if (ServicioSeleccionado is null)
+            {
+                await Shell.Current.DisplayAlert("Validación", "Selecciona un servicio.", "OK");
+                return;
+            }
+
+            if (VehiculoSeleccionado is null)
+            {
+                await Shell.Current.DisplayAlert("Validación", "Selecciona un vehículo.", "OK");
+                return;
+            }
+
+            if (Fecha.Date < DateTime.Today)
+            {
+                await Shell.Current.DisplayAlert("Validación", "La fecha no puede ser anterior a hoy.", "OK");
+                return;
+            }
+
+            var cita = new Cita
+            {
+                UsuarioId = uid,
+                VehiculoId = VehiculoSeleccionado.Id,
+                ServicioId = ServicioSeleccionado.Id,
+                Fecha = Fecha.Date,
+                Hora = Hora,
+                Estado = EstadosCita.Pendiente,
+                Observaciones = Observaciones
+            };
+
+            var ok = await _citaService.CrearCitaAsync(cita);
+            if (!ok)
+            {
+                await Shell.Current.DisplayAlert("Error", "No se pudo agendar la cita.", "OK");
+                return;
+            }
+
+            Observaciones = string.Empty;
+            await Shell.Current.DisplayAlert("Éxito", "Cita agendada correctamente.", "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}

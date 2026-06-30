@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "251822745790",
+    "project_id": "autolavadoapp-f9a62",
+    "storage_bucket": "autolavadoapp-f9a62.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:251822745790:android:2db013e0ea5c17c1bd96ef",
+        "android_client_info": {
+          "package_name": "com.companyname.autolavadoapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCa8N_kUd0RNEGxdK-ainHfk3DrfU_A4aA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

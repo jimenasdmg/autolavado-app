@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Shared.NotificacionesPage"
+             Shell.NavBarIsVisible="False"
+             Padding="0,18,0,0"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="Auto,*" Padding="24,60,24,20" RowSpacing="14">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" VerticalOptions="Center">
+            <Button WidthRequest="52"
+                    HeightRequest="52"
+                    Padding="0"
+                    CornerRadius="14"
+                    BackgroundColor="#0B1F4D"
+                    TextColor="White"
+                    FontFamily="FontAwesomeSolid"
+                    FontSize="22"
+                    Text="&#xF060;"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start"
+                    Clicked="OnVolverClicked" />
+
+            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                <Label Text="Notificaciones"
+                       FontSize="22"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D" />
+                <Label Text="Mensajes internos"
+                       FontSize="12"
+                       TextColor="#64748B" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Notificaciones}"
+                        SelectionMode="None">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border BackgroundColor="White"
+                            Stroke="#E7ECF4"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="12"
+                            Margin="0,0,0,10">
+                        <Border.Shadow>
+                            <Shadow Brush="#12000000" Offset="0,2" Radius="8" />
+                        </Border.Shadow>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Border WidthRequest="10"
+                                    HeightRequest="10"
+                                    BackgroundColor="#DC2626"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 5"
+                                    IsVisible="{Binding EsNoLeido}"
+                                    VerticalOptions="Center" />
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="3">
+                                <Label Text="{Binding Titulo}" FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+                                <Label Text="{Binding Mensaje}" FontSize="13" TextColor="#475569" LineBreakMode="TailTruncation" MaxLines="2" />
+                                <Label Text="{Binding Fecha, StringFormat='{0:dd/MM/yyyy HH:mm}'}" FontSize="11" TextColor="#94A3B8" />
+                            </VerticalStackLayout>
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.MarcarLeidaCommand}"
+                                                  CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

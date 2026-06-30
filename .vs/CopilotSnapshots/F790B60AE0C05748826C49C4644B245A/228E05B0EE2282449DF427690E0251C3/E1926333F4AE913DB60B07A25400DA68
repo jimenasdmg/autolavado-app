@@ -1,0 +1,103 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services
+{
+    public class VehiculoService : FirestoreBaseService
+    {
+        private const string ColeccionVehiculos = "vehiculos";
+
+        public VehiculoService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> GuardarVehiculoAsync(string clienteId, string marca, string modelo, string color, string placas)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "clienteId", clienteId },
+                { "marca", marca },
+                { "modelo", modelo },
+                { "color", color },
+                { "placas", placas }
+            };
+
+            return CrearDocumentoAsync(ColeccionVehiculos, datos);
+        }
+
+        public async Task<List<Vehiculo>> ObtenerVehiculosPorClienteAsync(string clienteId)
+        {
+            var json = await ObtenerDocumentosAsync(ColeccionVehiculos);
+            using var document = JsonDocument.Parse(json);
+
+            var vehiculos = new List<Vehiculo>();
+            if (!document.RootElement.TryGetProperty("documents", out var documentsElement) ||
+                documentsElement.ValueKind != JsonValueKind.Array)
+            {
+                return vehiculos;
+            }
+
+            foreach (var doc in documentsElement.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                var propietarioId = LeerString(fields, "clienteId") ?? string.Empty;
+                if (!string.Equals(propietarioId, clienteId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                vehiculos.Add(new Vehiculo
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    ClienteId = propietarioId,
+                    Marca = LeerString(fields, "marca") ?? string.Empty,
+                    Modelo = LeerString(fields, "modelo") ?? string.Empty,
+                    Color = LeerString(fields, "color") ?? string.Empty,
+                    Placas = LeerString(fields, "placas") ?? string.Empty
+                });
+            }
+
+            return vehiculos
+                .OrderBy(v => v.Marca)
+                .ThenBy(v => v.Modelo)
+                .ToList();
+        }
+
+        private static string ObtenerIdDocumento(JsonElement documento)
+        {
+            if (!documento.TryGetProperty("name", out var nameElement))
+            {
+                return string.Empty;
+            }
+
+            var name = nameElement.GetString() ?? string.Empty;
+            var partes = name.Split('/');
+            return partes.Length == 0 ? string.Empty : partes[^1];
+        }
+
+        private static string? LeerString(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+            {
+                return null;
+            }
+
+            return stringValueElement.GetString();
+        }
+    }
+}

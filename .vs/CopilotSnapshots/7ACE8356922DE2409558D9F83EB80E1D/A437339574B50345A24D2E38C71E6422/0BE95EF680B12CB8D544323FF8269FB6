@@ -1,0 +1,26 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class MainPage : ContentPage
+{
+    AutenticacionViewModel vm = new AutenticacionViewModel();
+
+    public MainPage()
+    {
+        InitializeComponent();
+    }
+
+    private async void OnLoginClicked(object sender, EventArgs e)
+    {
+        bool ok = vm.Login(txtEmail.Text, txtPassword.Text);
+
+        if (ok)
+        {
+            await DisplayAlert("Éxito", "Login correcto", "OK");
+            await Shell.Current.GoToAsync(nameof(HomePage));
+        }
+        else
+            await DisplayAlert("Error", "Credenciales incorrectas", "OK");
+    }
+}

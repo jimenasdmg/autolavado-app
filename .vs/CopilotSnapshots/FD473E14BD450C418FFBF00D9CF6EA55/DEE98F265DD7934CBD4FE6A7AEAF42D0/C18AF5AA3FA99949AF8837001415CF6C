@@ -1,0 +1,69 @@
+﻿using System.Text.Json;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services;
+
+public class UsuarioService : FirestoreBaseService
+{
+    private const string Collection = "usuarios";
+
+    public UsuarioService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+
+    public async Task<bool> GuardarUsuarioConRolAsync(Usuario usuario)
+    {
+        return await GuardarUsuarioAsync(usuario);
+    }
+
+    public async Task<bool> GuardarUsuarioAsync(Usuario usuario)
+    {
+        var uid = usuario.Uid ?? usuario.Id;
+        if (string.IsNullOrWhiteSpace(uid)) return false;
+
+        var body = new
+        {
+            fields = new Dictionary<string, object>
+            {
+                ["uid"] = new { stringValue = uid },
+                ["nombre"] = new { stringValue = (usuario.Nombre ?? string.Empty) },
+                ["correo"] = new { stringValue = (usuario.Correo ?? usuario.Email ?? string.Empty) },
+                ["rol"] = new { stringValue = (usuario.Rol ?? "cliente") }
+            }
+        };
+
+        return await CrearDocumentoAsync(Collection, body, uid);
+    }
+
+    public async Task<Usuario?> ObtenerUsuarioPorIdAsync(string uid, string? idToken = null)
+    {
+        var doc = await ObtenerDocumentoAsync(Collection, uid, idToken);
+        if (doc is null) return null;
+
+        var root = doc.Value;
+        if (!root.TryGetProperty("fields", out var f)) return null;
+
+        return new Usuario
+        {
+            Uid = ReadString(f, "uid") ?? uid,
+            Id = ReadString(f, "uid") ?? uid,
+            Nombre = ReadString(f, "nombre") ?? string.Empty,
+            Correo = ReadString(f, "correo") ?? string.Empty,
+            Email = ReadString(f, "correo") ?? string.Empty,
+            Rol = ReadString(f, "rol") ?? "cliente"
+        };
+    }
+
+    public async Task<string?> ObtenerRolPorUidAsync(string uid, string? idToken = null)
+    {
+        var usuario = await ObtenerUsuarioPorIdAsync(uid, idToken);
+        return usuario?.Rol;
+    }
+
+    private static string? ReadString(JsonElement fields, string key)
+    {
+        if (!fields.TryGetProperty(key, out var v)) return null;
+        if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+        return null;
+    }
+}

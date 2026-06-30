@@ -1,0 +1,67 @@
+﻿using System.Text.Json;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services;
+
+public class UsuarioService : FirestoreBaseService
+{
+    private const string Coleccion = "usuarios";
+
+    public UsuarioService(HttpClient httpClient)
+        : base(httpClient, "autolavadoapp-58dc3")
+    {
+    }
+
+    public async Task<bool> GuardarUsuarioConRolAsync(string uid, string correo, string nombre, string rol)
+    {
+        var usuario = new Usuario
+        {
+            Uid = uid,
+            Correo = correo,
+            Nombre = nombre,
+            Rol = string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant()
+        };
+
+        return await CrearDocumentoAsync($"{Coleccion}/{uid}", usuario);
+    }
+
+    public async Task<Usuario?> ObtenerUsuarioPorIdAsync(string uid)
+    {
+        var raw = await ObtenerDocumentoAsync($"{Coleccion}/{uid}");
+        if (raw is null) return null;
+
+        var doc = raw.Value;
+        return new Usuario
+        {
+            Uid = Read(doc, "Uid", "uid"),
+            Nombre = Read(doc, "Nombre", "nombre", "name"),
+            Correo = Read(doc, "Correo", "correo", "email"),
+            Rol = NormalizeRol(Read(doc, "Rol", "rol")),
+            IdToken = Read(doc, "IdToken", "idToken")
+        };
+    }
+
+    public Task<Usuario?> ObtenerPorUidAsync(string uid) => ObtenerUsuarioPorIdAsync(uid);
+
+    public async Task<string> ObtenerRolPorUidAsync(string uid)
+    {
+        var usuario = await ObtenerUsuarioPorIdAsync(uid);
+        return NormalizeRol(usuario?.Rol);
+    }
+
+    public async Task<object?> ObtenerUsuarioPorUidGenericoAsync(string uid)
+        => await ObtenerUsuarioPorIdAsync(uid);
+
+    private static string NormalizeRol(string? rol)
+        => string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant();
+
+    private static string Read(JsonElement doc, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (doc.TryGetProperty(key, out var value))
+                return value.GetString() ?? string.Empty;
+        }
+        return string.Empty;
+    }
+}

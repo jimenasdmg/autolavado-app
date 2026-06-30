@@ -1,0 +1,24 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class MiCuentaPage : ContentPage
+{
+    private readonly MiCuentaViewModel _viewModel;
+
+    public MiCuentaPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<MiCuentaViewModel>()
+            ?? throw new InvalidOperationException("MiCuentaViewModel no está registrado en DI.");
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarAsync();
+    }
+}

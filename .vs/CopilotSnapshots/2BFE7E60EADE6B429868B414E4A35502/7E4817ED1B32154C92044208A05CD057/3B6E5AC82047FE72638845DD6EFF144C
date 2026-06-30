@@ -1,0 +1,133 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class HomeViewModel : INotifyPropertyChanged
+    {
+        private readonly SessionService _sessionService;
+        private readonly UsuarioService _usuarioService;
+        private string _nombreUsuario = string.Empty;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public HomeViewModel(SessionService sessionService, UsuarioService usuarioService)
+        {
+            _sessionService = sessionService;
+            _usuarioService = usuarioService;
+
+            Servicios = new ObservableCollection<ServicioItem>
+            {
+                new ServicioItem
+                {
+                    Icono = "🧼",
+                    Nombre = "Lavado básico",
+                    Descripcion = "Limpieza exterior rápida y efectiva.",
+                    Precio = "$120"
+                },
+                new ServicioItem
+                {
+                    Icono = "✨",
+                    Nombre = "Lavado premium",
+                    Descripcion = "Exterior e interior con acabado brillante.",
+                    Precio = "$220"
+                },
+                new ServicioItem
+                {
+                    Icono = "🛡️",
+                    Nombre = "Detallado profesional",
+                    Descripcion = "Tratamiento profundo para máxima protección.",
+                    Precio = "$450"
+                }
+            };
+
+            ProximaCita = new ProximaCitaItem
+            {
+                Fecha = DateTime.Today.AddDays(2),
+                Hora = "10:30 AM",
+                Servicio = "Lavado premium",
+                Estado = "Confirmada"
+            };
+
+            NombreUsuario = "Cliente";
+        }
+
+        public string NombreUsuario
+        {
+            get => _nombreUsuario;
+            set => SetProperty(ref _nombreUsuario, value);
+        }
+
+        public string MensajeSaludo => $"Hola, {NombreUsuario}";
+
+        public ObservableCollection<ServicioItem> Servicios { get; }
+
+        public ProximaCitaItem ProximaCita { get; }
+
+        public async Task CargarUsuarioAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                NombreUsuario = "Cliente";
+                return;
+            }
+
+            var idToken = await _sessionService.ObtenerTokenAsync();
+
+            var usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(uid, idToken);
+            if (usuario == null)
+            {
+                NombreUsuario = "Cliente";
+                return;
+            }
+
+            var nombreCompleto = $"{usuario.Nombre} {usuario.ApellidoPaterno}".Trim();
+            NombreUsuario = string.IsNullOrWhiteSpace(nombreCompleto) ? "Cliente" : nombreCompleto;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+
+            if (propertyName == nameof(NombreUsuario))
+            {
+                OnPropertyChanged(nameof(MensajeSaludo));
+            }
+
+            return true;
+        }
+    }
+
+    public class ServicioItem
+    {
+        public string Icono { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public string Precio { get; set; } = string.Empty;
+    }
+
+    public class ProximaCitaItem
+    {
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string EstadoColor => Estado == "Confirmada" ? "#16A34A" : "#F59E0B";
+    }
+}

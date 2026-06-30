@@ -1,0 +1,141 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class FirebaseService
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _baseUrl;
+
+        public FirebaseService(HttpClient httpClient, string projectId, string apiKey)
+        {
+            _httpClient = httpClient;
+            _baseUrl = $"https://firestore.googleapis.com/v1/projects/{projectId}/databases/(default)/documents";
+
+            if (!_httpClient.DefaultRequestHeaders.Contains("X-Goog-Api-Key"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("X-Goog-Api-Key", apiKey);
+            }
+        }
+
+        public async Task<string> CrearDocumentoAsync(string coleccion, Dictionary<string, object> datos)
+        {
+            var url = $"{_baseUrl}/{coleccion}";
+            var payload = new { fields = ConvertirAFormatoFirestore(datos) };
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync(url, content);
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string> ObtenerDocumentosAsync(string coleccion)
+        {
+            var url = $"{_baseUrl}/{coleccion}";
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string> ActualizarDocumentoAsync(string coleccion, string documentoId, Dictionary<string, object> datos)
+        {
+            var url = $"{_baseUrl}/{coleccion}/{documentoId}";
+            var payload = new { fields = ConvertirAFormatoFirestore(datos) };
+            var json = JsonSerializer.Serialize(payload);
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), url)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task EliminarDocumentoAsync(string coleccion, string documentoId)
+        {
+            var url = $"{_baseUrl}/{coleccion}/{documentoId}";
+            var response = await _httpClient.DeleteAsync(url);
+            response.EnsureSuccessStatusCode();
+        }
+
+        private static Dictionary<string, object> ConvertirAFormatoFirestore(Dictionary<string, object> datos)
+        {
+            var fields = new Dictionary<string, object>();
+
+            foreach (var item in datos)
+            {
+                fields[item.Key] = ConvertirValorFirestore(item.Value);
+            }
+
+            return fields;
+        }
+
+        private static object ConvertirValorFirestore(object valor)
+        {
+            if (valor is string str)
+            {
+                return new Dictionary<string, object> { { "stringValue", str } };
+            }
+
+            if (valor is int i)
+            {
+                return new Dictionary<string, object> { { "integerValue", i.ToString() } };
+            }
+
+            if (valor is long l)
+            {
+                return new Dictionary<string, object> { { "integerValue", l.ToString() } };
+            }
+
+            if (valor is double d)
+            {
+                return new Dictionary<string, object> { { "doubleValue", d } };
+            }
+
+            if (valor is float f)
+            {
+                return new Dictionary<string, object> { { "doubleValue", f } };
+            }
+
+            if (valor is bool b)
+            {
+                return new Dictionary<string, object> { { "booleanValue", b } };
+            }
+
+            if (valor is DateTime dt)
+            {
+                return new Dictionary<string, object> { { "timestampValue", dt.ToUniversalTime().ToString("o") } };
+            }
+
+            if (valor is decimal dec)
+            {
+                return new Dictionary<string, object> { { "doubleValue", (double)dec } };
+            }
+
+            return new Dictionary<string, object> { { "stringValue", valor.ToString() ?? string.Empty } };
+        }
+
+        public static Dictionary<string, object> EjemploCita()
+        {
+            return new Dictionary<string, object>
+            {
+                { "clienteNombre", "Juan Pérez" },
+                { "servicio", "Lavado Premium" },
+                { "fecha", DateTime.Now.Date.ToString("yyyy-MM-dd") },
+                { "hora", "10:30" },
+                { "estado", "Agendada" },
+                { "precio", 250.0 }
+            };
+        }
+    }
+}

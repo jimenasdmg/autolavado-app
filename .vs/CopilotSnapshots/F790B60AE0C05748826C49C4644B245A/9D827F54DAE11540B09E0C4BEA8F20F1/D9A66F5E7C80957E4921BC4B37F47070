@@ -1,0 +1,29 @@
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class UsuarioService : FirestoreBaseService
+    {
+        private const string ColeccionUsuarios = "usuarios";
+
+        public UsuarioService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> GuardarUsuarioAsync(string uid, string nombre, string apellidoPaterno, string apellidoMaterno, string email)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "id", uid },
+                { "nombre", nombre },
+                { "apellidoPaterno", apellidoPaterno },
+                { "apellidoMaterno", apellidoMaterno ?? string.Empty },
+                { "email", email }
+            };
+
+            return CrearODocumentoAsync(ColeccionUsuarios, uid, datos);
+        }
+    }
+}

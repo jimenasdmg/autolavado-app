@@ -1,0 +1,14 @@
+﻿namespace AutoLavadoApp.Views.Cliente;
+
+public class HomePage : global::AutoLavadoApp.HomePage { }
+public class MiCuentaPage : global::AutoLavadoApp.MiCuentaPage { }
+public class MisVehiculosPage : global::AutoLavadoApp.MisVehiculosPage { }
+public class AgregarVehiculoPage : global::AutoLavadoApp.AgregarVehiculoPage { }
+public class AgendarCitaPage : global::AutoLavadoApp.AgendarCitaPage { }
+public class MisCitasPage : global::AutoLavadoApp.MisCitasPage { }
+public class DetalleCitaPage : global::AutoLavadoApp.DetalleCitaPage
+{
+    public DetalleCitaPage(string citaId) : base(citaId)
+    {
+    }
+}

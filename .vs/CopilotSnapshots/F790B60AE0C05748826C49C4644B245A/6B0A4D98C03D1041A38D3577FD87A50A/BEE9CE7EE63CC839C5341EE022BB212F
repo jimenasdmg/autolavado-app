@@ -1,0 +1,71 @@
+﻿using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services
+{
+    public class UsuarioService : FirestoreBaseService
+    {
+        private const string ColeccionUsuarios = "usuarios";
+
+        public UsuarioService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> GuardarUsuarioAsync(string uid, string nombre, string apellidoPaterno, string apellidoMaterno, string email)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "id", uid },
+                { "nombre", nombre },
+                { "apellidoPaterno", apellidoPaterno },
+                { "apellidoMaterno", apellidoMaterno ?? string.Empty },
+                { "email", email }
+            };
+
+            return CrearODocumentoAsync(ColeccionUsuarios, uid, datos);
+        }
+
+        public async Task<Usuario?> ObtenerUsuarioPorIdAsync(string uid)
+        {
+            var json = await ObtenerDocumentoAsync(ColeccionUsuarios, uid);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("fields", out var fields))
+            {
+                return null;
+            }
+
+            return new Usuario
+            {
+                Id = LeerString(fields, "id") ?? uid,
+                Nombre = LeerString(fields, "nombre") ?? string.Empty,
+                ApellidoPaterno = LeerString(fields, "apellidoPaterno") ?? string.Empty,
+                ApellidoMaterno = LeerString(fields, "apellidoMaterno") ?? string.Empty,
+                Email = LeerString(fields, "email") ?? string.Empty
+            };
+        }
+
+        private static string? LeerString(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+            {
+                return null;
+            }
+
+            return stringValueElement.GetString();
+        }
+    }
+}

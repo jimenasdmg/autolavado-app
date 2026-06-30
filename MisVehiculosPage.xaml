@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="AutoLavadoApp.Views.Cliente.MisVehiculosPage"
+    x:Name="PageRoot"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AutoLavadoApp.ViewModels"
+    x:DataType="vm:MisVehiculosViewModel"
+    Title="Mis vehículos"
+    BackgroundColor="#F5F7FB">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,18,20,24" Spacing="12">
+
+            <Label Text="Mis vehículos" FontSize="26" FontAttributes="Bold" TextColor="#0B1F4D" />
+
+            <Label Text="Agrega o edita los autos que usarás al agendar citas"
+                   FontSize="13"
+                   TextColor="#64748B" />
+
+            <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 14" Padding="12">
+                <VerticalStackLayout Spacing="10">
+                    <Entry Placeholder="Placa" Text="{Binding Placa}" TextColor="#0B1F4D" PlaceholderColor="#64748B" BackgroundColor="#F8FAFC" HeightRequest="44" />
+                    <Entry Placeholder="Marca" Text="{Binding Marca}" TextColor="#0B1F4D" PlaceholderColor="#64748B" BackgroundColor="#F8FAFC" HeightRequest="44" />
+                    <Entry Placeholder="Modelo" Text="{Binding Modelo}" TextColor="#0B1F4D" PlaceholderColor="#64748B" BackgroundColor="#F8FAFC" HeightRequest="44" />
+                    <Entry Placeholder="Color" Text="{Binding Color}" TextColor="#0B1F4D" PlaceholderColor="#64748B" BackgroundColor="#F8FAFC" HeightRequest="44" />
+                    <Entry Placeholder="Año" Keyboard="Numeric" Text="{Binding Anio}" TextColor="#0B1F4D" PlaceholderColor="#64748B" BackgroundColor="#F8FAFC" HeightRequest="44" />
+                </VerticalStackLayout>
+            </Border>
+
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="Guardar"
+                        BackgroundColor="#2563EB"
+                        TextColor="White"
+                        HeightRequest="46"
+                        CornerRadius="12"
+                        FontAttributes="Bold"
+                        Command="{Binding GuardarCommand}" />
+                <Button Text="Limpiar"
+                        BackgroundColor="#E2E8F0"
+                        TextColor="#334155"
+                        HeightRequest="46"
+                        CornerRadius="12"
+                        FontAttributes="Bold"
+                        Command="{Binding LimpiarFormularioCommand}" />
+            </HorizontalStackLayout>
+
+            <CollectionView ItemsSource="{Binding Vehiculos}"
+                            SelectionMode="Single"
+                            SelectedItem="{Binding VehiculoSeleccionado}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="{x:Null}">
+                        <Border Stroke="#E7ECF4" BackgroundColor="White" StrokeThickness="1" Padding="12" StrokeShape="RoundRectangle 12">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label Grid.Row="0" Grid.Column="0" Text="{Binding Placa}" FontAttributes="Bold" />
+                                <Label Grid.Row="1" Grid.Column="0" Text="{Binding Marca}" />
+                                <Label Grid.Row="2" Grid.Column="0" Text="{Binding Modelo}" />
+
+                                <Button Grid.Row="0" Grid.Column="1"
+                                        Text="Eliminar"
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.EliminarCommand}"
+                                        CommandParameter="{Binding .}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

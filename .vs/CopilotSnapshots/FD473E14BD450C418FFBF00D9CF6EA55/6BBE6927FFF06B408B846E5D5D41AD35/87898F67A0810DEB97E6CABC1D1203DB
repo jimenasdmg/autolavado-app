@@ -1,0 +1,12 @@
+﻿namespace AutoLavadoApp;
+
+public partial class App : Application
+{
+    public App()
+    {
+        InitializeComponent();
+
+        // Estrategia única de arranque
+        MainPage = new NavigationPage(new LoginPage());
+    }
+}}

@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="AutoLavadoApp.MisVehiculosPage"
+    x:Name="PageRoot"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vm="clr-namespace:AutoLavadoApp.ViewModels.Cliente"
+    x:DataType="vm:MisVehiculosViewModel"
+    Title="Mis vehículos">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <Label Text="Mis vehículos" FontSize="24" FontAttributes="Bold" />
+
+            <Entry Placeholder="Placa" Text="{Binding Placa}" />
+            <Entry Placeholder="Marca" Text="{Binding Marca}" />
+            <Entry Placeholder="Modelo" Text="{Binding Modelo}" />
+            <Entry Placeholder="Color" Text="{Binding Color}" />
+            <Entry Placeholder="Año" Keyboard="Numeric" Text="{Binding Anio}" />
+
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="Guardar"
+                        Command="{Binding GuardarCommand}" />
+                <Button Text="Limpiar"
+                        Command="{Binding LimpiarFormularioCommand}" />
+            </HorizontalStackLayout>
+
+            <CollectionView ItemsSource="{Binding Vehiculos}"
+                            SelectionMode="Single"
+                            SelectedItem="{Binding VehiculoSeleccionado}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="{x:Null}">
+                        <Border StrokeThickness="1" Padding="12" StrokeShape="RoundRectangle 10">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                <Label Grid.Row="0" Grid.Column="0" Text="{Binding Placa}" FontAttributes="Bold" />
+                                <Label Grid.Row="1" Grid.Column="0" Text="{Binding Marca}" />
+                                <Label Grid.Row="2" Grid.Column="0" Text="{Binding Modelo}" />
+
+                                <Button Grid.Row="0" Grid.Column="1"
+                                        Text="Eliminar"
+                                        Command="{Binding Source={x:Reference PageRoot}, Path=BindingContext.EliminarCommand}"
+                                        CommandParameter="{Binding .}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

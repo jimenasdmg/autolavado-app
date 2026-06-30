@@ -1,0 +1,26 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace AutoLavadoApp.Models
+{
+    public class Usuario
+    {
+        public string Uid { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string ApellidoPaterno { get; set; } = string.Empty;
+        public string ApellidoMaterno { get; set; } = string.Empty;
+        public string Correo { get; set; } = string.Empty;
+        public string Rol { get; set; } = "cliente";
+        public bool Activo { get; set; } = true;
+        public string IdToken { get; set; } = string.Empty;
+
+        public string Email
+        {
+            get => Correo;
+            set => Correo = value;
+        }
+
+        public string? Telefono { get; set; }
+    }
+}

@@ -1,0 +1,75 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class CitaService : FirestoreBaseService
+    {
+        private const string ColeccionCitas = "citas";
+
+        public CitaService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> CrearCitaAsync(DateTime fecha, string estado, string clienteId)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "fecha", fecha },
+                { "estado", estado },
+                { "clienteId", clienteId }
+            };
+
+            return CrearDocumentoAsync(ColeccionCitas, datos);
+        }
+
+        public Task<string> GuardarCitaAsync(
+            string clienteId,
+            string servicio,
+            DateTime fecha,
+            TimeSpan hora,
+            string vehiculo,
+            string placas,
+            string comentarios)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "clienteId", clienteId },
+                { "servicio", servicio },
+                { "fecha", fecha.Date },
+                { "hora", hora.ToString(@"hh\:mm") },
+                { "vehiculo", vehiculo },
+                { "placas", placas },
+                { "comentarios", comentarios },
+                { "estado", "Pendiente" }
+            };
+
+            return CrearDocumentoAsync(ColeccionCitas, datos);
+        }
+
+        public Task<string> ObtenerCitasAsync()
+        {
+            return ObtenerDocumentosAsync(ColeccionCitas);
+        }
+
+        public Task<string> ActualizarCitaAsync(string citaId, DateTime fecha, string estado, string clienteId)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "fecha", fecha },
+                { "estado", estado },
+                { "clienteId", clienteId }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionCitas, citaId, datos);
+        }
+
+        public Task EliminarCitaAsync(string citaId)
+        {
+            return EliminarDocumentoAsync(ColeccionCitas, citaId);
+        }
+    }
+}

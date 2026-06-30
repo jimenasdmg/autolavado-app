@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AgregarVehiculoPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,22,20,28" Spacing="14">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <Button Text="←"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="White"
+                        TextColor="#0B1F4D"
+                        Clicked="OnVolverClicked" />
+                <Label Grid.Column="1"
+                       Text="Agregar vehículo"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D"
+                       VerticalTextAlignment="Center" />
+            </Grid>
+
+            <Label Text="Registra tu auto para usarlo al agendar citas"
+                   FontSize="14"
+                   TextColor="#64748B" />
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#18000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="10">
+                    <Entry Placeholder="Marca"
+                           Text="{Binding Marca}" />
+
+                    <Entry Placeholder="Modelo"
+                           Text="{Binding Modelo}" />
+
+                    <Entry Placeholder="Color"
+                           Text="{Binding Color}" />
+
+                    <Entry Placeholder="Placas"
+                           CharacterCasing="Upper"
+                           Text="{Binding Placas}" />
+
+                    <Label Text="{Binding ErrorMessage}"
+                           TextColor="#D92D20"
+                           FontSize="12"
+                           IsVisible="{Binding HasError}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button Text="Guardar vehículo"
+                    HeightRequest="50"
+                    CornerRadius="12"
+                    BackgroundColor="#3B82F6"
+                    TextColor="White"
+                    FontSize="17"
+                    FontAttributes="Bold"
+                    Command="{Binding GuardarVehiculoCommand}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

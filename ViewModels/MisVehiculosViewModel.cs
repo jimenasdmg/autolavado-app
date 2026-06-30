@@ -1,0 +1,244 @@
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class MisVehiculosViewModel : INotifyPropertyChanged
+    {
+        private readonly IVehiculoRepository _vehiculoRepository;
+        private readonly SessionService _sessionService;
+
+        private Vehiculo? _vehiculoSeleccionado;
+        private bool _isBusy;
+
+        private string _placa = string.Empty;
+        private string _marca = string.Empty;
+        private string _modelo = string.Empty;
+        private string _color = string.Empty;
+        private int _anio;
+
+        private string _mensajeVacio = "No tienes vehículos registrados.";
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public MisVehiculosViewModel(IVehiculoRepository vehiculoRepository, SessionService sessionService)
+        {
+            _vehiculoRepository = vehiculoRepository;
+            _sessionService = sessionService;
+            Vehiculos = new ObservableCollection<Vehiculo>();
+            CargarCommand = new Command(async () => await CargarAsync(), () => !IsBusy);
+            GuardarCommand = new Command(async () => await GuardarDesdeFormularioAsync());
+            EliminarCommand = new Command<Vehiculo>(async v => await EliminarAsync(v));
+            LimpiarFormularioCommand = new Command(LimpiarFormulario);
+        }
+
+        public ObservableCollection<Vehiculo> Vehiculos { get; }
+
+        public ICommand CargarCommand { get; }
+        public ICommand GuardarCommand { get; }
+        public ICommand EliminarCommand { get; }
+        public ICommand LimpiarFormularioCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+        public Func<string, string, string, string, Task<bool>>? ConfirmarAccionAsync { get; set; }
+
+        public string MensajeVacio
+        {
+            get => _mensajeVacio;
+            private set => SetProperty(ref _mensajeVacio, value);
+        }
+
+        public bool HasVehiculos => Vehiculos.Count > 0;
+
+        public bool HasNoVehiculos => !HasVehiculos;
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            set { _isBusy = value; OnPropertyChanged(); }
+        }
+
+        public Vehiculo? VehiculoSeleccionado
+        {
+            get => _vehiculoSeleccionado;
+            set
+            {
+                _vehiculoSeleccionado = value;
+                OnPropertyChanged();
+                CargarFormularioDesdeSeleccionado();
+            }
+        }
+
+        public string Placa
+        {
+            get => _placa;
+            set { _placa = value; OnPropertyChanged(); }
+        }
+
+        public string Marca
+        {
+            get => _marca;
+            set { _marca = value; OnPropertyChanged(); }
+        }
+
+        public string Modelo
+        {
+            get => _modelo;
+            set { _modelo = value; OnPropertyChanged(); }
+        }
+
+        public string Color
+        {
+            get => _color;
+            set { _color = value; OnPropertyChanged(); }
+        }
+
+        public int Anio
+        {
+            get => _anio;
+            set { _anio = value; OnPropertyChanged(); }
+        }
+
+        public async Task CargarAsync()
+        {
+            if (IsBusy) return;
+            IsBusy = true;
+
+            try
+            {
+                var uid = _sessionService.ObtenerSesionActual()?.Uid;
+                if (string.IsNullOrWhiteSpace(uid)) uid = _sessionService.ObtenerUid();
+                if (string.IsNullOrWhiteSpace(uid)) return;
+
+                var token = await _sessionService.ObtenerTokenAsync();
+                if (SessionService.TokenExpirado(token)) return;
+
+                var data = await _vehiculoRepository.ObtenerPorUsuarioAsync(uid, token);
+                Vehiculos.Clear();
+                foreach (var item in data) Vehiculos.Add(item);
+            }
+            catch
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", "No fue posible cargar tus vehículos.", "OK");
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public async Task<bool> GuardarDesdeFormularioAsync()
+        {
+            var vehiculo = new Vehiculo
+            {
+                Id = VehiculoSeleccionado?.Id ?? string.Empty,
+                Placa = Placa?.Trim().ToUpperInvariant() ?? string.Empty,
+                Marca = Marca?.Trim() ?? string.Empty,
+                Modelo = Modelo?.Trim() ?? string.Empty,
+                Color = Color?.Trim() ?? string.Empty,
+                Anio = Anio
+            };
+
+            var ok = await GuardarAsync(vehiculo);
+            if (ok) LimpiarFormulario();
+            return ok;
+        }
+
+        public async Task<bool> GuardarAsync(Vehiculo? vehiculo)
+        {
+            if (vehiculo is null) return false;
+            var placa = string.IsNullOrWhiteSpace(vehiculo.Placa) ? vehiculo.Placas : vehiculo.Placa;
+            if (!ValidarPlaca(placa))
+                throw new InvalidOperationException("Placa inválida.");
+
+            vehiculo.Placa = placa?.Trim().ToUpperInvariant() ?? string.Empty;
+            vehiculo.Placas = vehiculo.Placa;
+
+            var uid = _sessionService.ObtenerSesionActual()?.Uid;
+            if (string.IsNullOrWhiteSpace(uid)) uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid)) return false;
+
+            var token = await _sessionService.ObtenerTokenAsync();
+            if (SessionService.TokenExpirado(token)) return false;
+
+            vehiculo.UsuarioId = uid;
+            vehiculo.ClienteId = uid;
+
+            var ok = await _vehiculoRepository.GuardarAsync(vehiculo, token);
+            if (ok) await CargarAsync();
+            return ok;
+        }
+
+        public async Task<bool> EliminarAsync(Vehiculo? vehiculo)
+        {
+            if (vehiculo is null || string.IsNullOrWhiteSpace(vehiculo.Id)) return false;
+            var token = await _sessionService.ObtenerTokenAsync();
+            if (SessionService.TokenExpirado(token)) return false;
+
+            var ok = await _vehiculoRepository.EliminarAsync(vehiculo.Id, token);
+            if (ok)
+            {
+                await CargarAsync();
+                if (VehiculoSeleccionado?.Id == vehiculo.Id) LimpiarFormulario();
+            }
+            return ok;
+        }
+
+        private void CargarFormularioDesdeSeleccionado()
+        {
+            if (VehiculoSeleccionado is null) return;
+
+            Placa = VehiculoSeleccionado.Placa;
+            Marca = VehiculoSeleccionado.Marca;
+            Modelo = VehiculoSeleccionado.Modelo;
+            Color = VehiculoSeleccionado.Color;
+            Anio = VehiculoSeleccionado.Anio;
+        }
+
+        private void LimpiarFormulario()
+        {
+            VehiculoSeleccionado = null;
+            Placa = string.Empty;
+            Marca = string.Empty;
+            Modelo = string.Empty;
+            Color = string.Empty;
+            Anio = 0;
+        }
+
+        public static bool ValidarPlaca(string placa)
+        {
+            if (string.IsNullOrWhiteSpace(placa)) return false;
+            return Regex.IsMatch(placa.Trim().ToUpperInvariant(), "^[A-Z0-9-]{5,10}$");
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

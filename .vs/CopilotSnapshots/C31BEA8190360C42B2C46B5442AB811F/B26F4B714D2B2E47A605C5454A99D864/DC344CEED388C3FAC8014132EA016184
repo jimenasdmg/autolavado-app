@@ -1,0 +1,404 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AgendarCitaPage"
+             BackgroundColor="#F8FAFC"
+             Shell.NavBarIsVisible="False">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout x:Name="MainContent" Padding="20,28,20,32" Spacing="16" Opacity="0">
+
+                <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center" Margin="0,6,0,0">
+                    <Button Text="←"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            FontSize="20"
+                            CornerRadius="20"
+                            BackgroundColor="White"
+                            TextColor="#0F172A"
+                            Clicked="OnVolverClicked" />
+
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="2">
+                        <Label Text="BRIZZO"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               HorizontalTextAlignment="Center"
+                               TextColor="#2563EB" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Agendar cita"
+                           FontSize="32"
+                           FontAttributes="Bold"
+                           TextColor="#0F172A" />
+                    <Label Text="Reserva tu lavado y ahorra tiempo."
+                           FontSize="14"
+                           TextColor="#64748B" />
+                </VerticalStackLayout>
+
+                <Border IsVisible="{Binding HasError}"
+                        BackgroundColor="#FEF2F2"
+                        Stroke="#FECACA"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 12"
+                        Padding="12,10">
+                    <Label Text="{Binding ErrorMessage}"
+                           FontSize="13"
+                           TextColor="#B91C1C" />
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Paso 1 · Seleccionar servicio"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
+
+                        <CollectionView ItemsSource="{Binding Servicios}" SelectionMode="None">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout ItemSpacing="10" Orientation="Vertical" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BackgroundColor="{Binding Fondo}"
+                                            Stroke="{Binding Borde}"
+                                            StrokeThickness="1.4"
+                                            StrokeShape="RoundRectangle 14"
+                                            Padding="12">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SeleccionarServicioCommand}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                            <Border BackgroundColor="#DBEAFE"
+                                                    StrokeShape="RoundRectangle 10"
+                                                    Padding="8"
+                                                    VerticalOptions="Center"
+                                                    WidthRequest="36"
+                                                    HeightRequest="36">
+                                                <Label Text="✦"
+                                                       FontSize="14"
+                                                       HorizontalTextAlignment="Center"
+                                                       VerticalTextAlignment="Center"
+                                                       TextColor="#1D4ED8" />
+                                            </Border>
+                                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                <Label Text="{Binding Nombre}"
+                                                       FontSize="14"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#0F172A" />
+                                                <Label Text="{Binding Descripcion}"
+                                                       FontSize="12"
+                                                       TextColor="#64748B"
+                                                       MaxLines="2" />
+                                                <Label Text="{Binding PrecioTexto}"
+                                                       FontSize="12"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#2563EB" />
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Modalidad"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
+
+                        <VerticalStackLayout Spacing="10">
+                            <Border BackgroundColor="{Binding FondoSucursal}"
+                                    Stroke="{Binding BordeSucursal}"
+                                    StrokeThickness="1.2"
+                                    StrokeShape="RoundRectangle 12"
+                                    Padding="12,10">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SeleccionarSucursalCommand}" />
+                                </Border.GestureRecognizers>
+                                <Label Text="◉ Llevaré mi auto"
+                                       FontAttributes="Bold"
+                                       FontSize="13"
+                                       TextColor="{Binding TextoSucursal}" />
+                            </Border>
+
+                            <Border BackgroundColor="{Binding FondoDomicilio}"
+                                    Stroke="{Binding BordeDomicilio}"
+                                    StrokeThickness="1.2"
+                                    StrokeShape="RoundRectangle 12"
+                                    Padding="12,10">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SeleccionarDomicilioCommand}" />
+                                </Border.GestureRecognizers>
+                                <Label Text="◉ Recolección a domicilio"
+                                       FontAttributes="Bold"
+                                       FontSize="13"
+                                       TextColor="{Binding TextoDomicilio}" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16"
+                        IsVisible="{Binding EsRecoleccion}">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Recolección a domicilio"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
+                        <Entry Placeholder="Dirección"
+                               Text="{Binding Direccion}"
+                               PlaceholderColor="#94A3B8"
+                               TextColor="#0F172A" />
+                        <Entry Placeholder="Referencias"
+                               Text="{Binding Referencias}"
+                               PlaceholderColor="#94A3B8"
+                               TextColor="#0F172A" />
+                        <Entry Placeholder="Código postal"
+                               Keyboard="Numeric"
+                               Text="{Binding CodigoPostal}"
+                               PlaceholderColor="#94A3B8"
+                               TextColor="#0F172A" />
+                        <Editor Placeholder="Notas adicionales"
+                                AutoSize="TextChanges"
+                                HeightRequest="86"
+                                Text="{Binding NotasAdicionales}"
+                                PlaceholderColor="#94A3B8"
+                                TextColor="#0F172A" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Paso 2 · Seleccionar fecha"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center">
+                            <Button Text="‹"
+                                    FontSize="18"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="18"
+                                    BackgroundColor="#EFF6FF"
+                                    TextColor="#1D4ED8"
+                                    Command="{Binding MesAnteriorCommand}" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding MesActualTexto}"
+                                   HorizontalTextAlignment="Center"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+                            <Button Grid.Column="2"
+                                    Text="›"
+                                    FontSize="18"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    CornerRadius="18"
+                                    BackgroundColor="#EFF6FF"
+                                    TextColor="#1D4ED8"
+                                    Command="{Binding MesSiguienteCommand}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="44,44,44,44,44,44,44" HorizontalOptions="Center" ColumnSpacing="6">
+                            <Label Text="D" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                            <Label Grid.Column="1" Text="L" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                            <Label Grid.Column="2" Text="M" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                            <Label Grid.Column="3" Text="M" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                            <Label Grid.Column="4" Text="J" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                            <Label Grid.Column="5" Text="V" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                            <Label Grid.Column="6" Text="S" HorizontalTextAlignment="Center" FontSize="12" FontAttributes="Bold" TextColor="#94A3B8" />
+                        </Grid>
+
+                        <CollectionView ItemsSource="{Binding DiasCalendario}" SelectionMode="None" HeightRequest="312">
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Vertical" Span="7" HorizontalItemSpacing="6" VerticalItemSpacing="6" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BackgroundColor="{Binding Fondo}"
+                                            Stroke="{Binding Borde}"
+                                            StrokeThickness="1"
+                                            StrokeShape="{Binding Forma}"
+                                            HeightRequest="44"
+                                            WidthRequest="44"
+                                            HorizontalOptions="Center"
+                                            VerticalOptions="Center">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SeleccionarDiaCommand}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Grid RowDefinitions="*,Auto" Padding="2">
+                                            <Label Text="{Binding Numero}"
+                                                   HorizontalTextAlignment="Center"
+                                                   VerticalTextAlignment="Center"
+                                                   FontSize="12"
+                                                   TextColor="{Binding ColorTexto}" />
+                                            <BoxView Grid.Row="1"
+                                                     WidthRequest="4"
+                                                     HeightRequest="4"
+                                                     CornerRadius="2"
+                                                     HorizontalOptions="Center"
+                                                     Margin="0,0,0,3"
+                                                     Color="{Binding ColorPunto}"
+                                                     IsVisible="{Binding TieneDisponibilidad}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Paso 3 · Seleccionar hora"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
+
+                        <FlexLayout BindableLayout.ItemsSource="{Binding HorasDisponibles}" Wrap="Wrap" Direction="Row" JustifyContent="Start" AlignItems="Start">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BackgroundColor="{Binding Fondo}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 12"
+                                            Margin="0,0,8,8"
+                                            Padding="14,8">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SeleccionarHoraCommand}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="{Binding Hora}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{Binding ColorTexto}" />
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Vehículo"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
+                        <Picker ItemsSource="{Binding Vehiculos}"
+                                SelectedItem="{Binding VehiculoSeleccionado}"
+                                ItemDisplayBinding="{Binding Placa}"
+                                Title="Selecciona un vehículo"
+                                IsEnabled="{Binding CanInteract}" />
+                        <Button Text="Agregar vehículo"
+                                HeightRequest="40"
+                                CornerRadius="12"
+                                BackgroundColor="#EFF6FF"
+                                TextColor="#1D4ED8"
+                                FontAttributes="Bold"
+                                Clicked="OnAgregarVehiculoClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Tu cita" FontSize="16" FontAttributes="Bold" TextColor="#0F172A" />
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                            <Label Text="Servicio:" FontSize="13" TextColor="#64748B" />
+                            <Label Grid.Column="1" Text="{Binding ResumenServicio}" FontSize="13" FontAttributes="Bold" TextColor="#0F172A" />
+                            <Label Grid.Row="1" Text="Fecha:" FontSize="13" TextColor="#64748B" />
+                            <Label Grid.Row="1" Grid.Column="1" Text="{Binding ResumenFecha}" FontSize="13" FontAttributes="Bold" TextColor="#0F172A" />
+                            <Label Grid.Row="2" Text="Hora:" FontSize="13" TextColor="#64748B" />
+                            <Label Grid.Row="2" Grid.Column="1" Text="{Binding ResumenHora}" FontSize="13" FontAttributes="Bold" TextColor="#0F172A" />
+                        </Grid>
+
+                        <Button Text="Confirmar cita"
+                                HeightRequest="52"
+                                CornerRadius="14"
+                                FontAttributes="Bold"
+                                FontSize="16"
+                                Command="{Binding ConfirmarCitaCommand}"
+                                IsEnabled="{Binding PuedeConfirmar}"
+                                TextColor="White">
+                            <Button.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#1D4ED8" Offset="0" />
+                                    <GradientStop Color="#2563EB" Offset="0.5" />
+                                    <GradientStop Color="#3B82F6" Offset="1" />
+                                </LinearGradientBrush>
+                            </Button.Background>
+                            <Button.Shadow>
+                                <Shadow Brush="#302563EB" Offset="0,4" Radius="10" />
+                            </Button.Shadow>
+                        </Button>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid IsVisible="{Binding IsBusy}" BackgroundColor="#80F8FAFC" InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8">
+                <ActivityIndicator IsRunning="{Binding IsBusy}" Color="#2563EB" WidthRequest="44" HeightRequest="44" />
+                <Label Text="Preparando agenda..." FontSize="13" FontAttributes="Bold" TextColor="#0F172A" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

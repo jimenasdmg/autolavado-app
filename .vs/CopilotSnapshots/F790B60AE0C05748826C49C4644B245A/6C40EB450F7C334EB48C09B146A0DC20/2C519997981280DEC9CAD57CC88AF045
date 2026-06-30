@@ -1,0 +1,203 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class CitaService : FirestoreBaseService
+    {
+        private const string ColeccionCitas = "citas";
+
+        public CitaService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> CrearCitaAsync(DateTime fecha, string estado, string clienteId)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "fecha", fecha },
+                { "estado", estado },
+                { "clienteId", clienteId }
+            };
+
+            return CrearDocumentoAsync(ColeccionCitas, datos);
+        }
+
+        public Task<string> GuardarCitaAsync(
+            string clienteId,
+            string servicio,
+            DateTime fecha,
+            TimeSpan hora,
+            string vehiculo,
+            string placas,
+            string comentarios)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "clienteId", clienteId },
+                { "servicio", servicio },
+                { "fecha", fecha.Date },
+                { "hora", hora.ToString(@"hh\:mm") },
+                { "vehiculo", vehiculo },
+                { "placas", placas },
+                { "comentarios", comentarios },
+                { "estado", "Pendiente" }
+            };
+
+            return CrearDocumentoAsync(ColeccionCitas, datos);
+        }
+
+        public Task<string> ObtenerCitasAsync()
+        {
+            return ObtenerDocumentosAsync(ColeccionCitas);
+        }
+
+        public async Task<List<CitaResumen>> ObtenerCitasPorClienteAsync(string clienteId)
+        {
+            var json = await ObtenerCitasAsync();
+            using var document = JsonDocument.Parse(json);
+
+            var citas = new List<CitaResumen>();
+            if (!document.RootElement.TryGetProperty("documents", out var documentsElement) ||
+                documentsElement.ValueKind != JsonValueKind.Array)
+            {
+                return citas;
+            }
+
+            foreach (var doc in documentsElement.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                var citaClienteId = LeerString(fields, "clienteId");
+                if (!string.Equals(citaClienteId, clienteId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var cita = new CitaResumen
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    ClienteId = citaClienteId ?? string.Empty,
+                    Servicio = LeerString(fields, "servicio") ?? string.Empty,
+                    Fecha = LeerFecha(fields, "fecha"),
+                    Hora = LeerString(fields, "hora") ?? string.Empty,
+                    Estado = LeerString(fields, "estado") ?? "Pendiente",
+                    Vehiculo = LeerString(fields, "vehiculo") ?? string.Empty,
+                    Placas = LeerString(fields, "placas") ?? string.Empty,
+                    Comentarios = LeerString(fields, "comentarios") ?? string.Empty
+                };
+
+                citas.Add(cita);
+            }
+
+            return citas
+                .OrderByDescending(c => c.Fecha)
+                .ThenBy(c => c.Hora)
+                .ToList();
+        }
+
+        public async Task CancelarCitaAsync(string citaId)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "estado", "Cancelada" }
+            };
+
+            await ActualizarDocumentoAsync(ColeccionCitas, citaId, datos);
+        }
+
+        public Task<string> ActualizarCitaAsync(string citaId, DateTime fecha, string estado, string clienteId)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "fecha", fecha },
+                { "estado", estado },
+                { "clienteId", clienteId }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionCitas, citaId, datos);
+        }
+
+        public Task EliminarCitaAsync(string citaId)
+        {
+            return EliminarDocumentoAsync(ColeccionCitas, citaId);
+        }
+
+        private static string ObtenerIdDocumento(JsonElement documento)
+        {
+            if (!documento.TryGetProperty("name", out var nameElement))
+            {
+                return string.Empty;
+            }
+
+            var name = nameElement.GetString() ?? string.Empty;
+            var partes = name.Split('/');
+            return partes.Length == 0 ? string.Empty : partes[^1];
+        }
+
+        private static string? LeerString(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+            {
+                return null;
+            }
+
+            return stringValueElement.GetString();
+        }
+
+        private static DateTime LeerFecha(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return DateTime.Today;
+            }
+
+            if (propiedadElement.TryGetProperty("timestampValue", out var timestampElement))
+            {
+                var timestamp = timestampElement.GetString();
+                if (DateTime.TryParse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
+                {
+                    return parsed.ToLocalTime().Date;
+                }
+            }
+
+            if (propiedadElement.TryGetProperty("stringValue", out var stringElement))
+            {
+                var value = stringElement.GetString();
+                if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+                {
+                    return parsed.Date;
+                }
+            }
+
+            return DateTime.Today;
+        }
+    }
+
+    public class CitaResumen
+    {
+        public string Id { get; set; } = string.Empty;
+        public string ClienteId { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string Vehiculo { get; set; } = string.Empty;
+        public string Placas { get; set; } = string.Empty;
+        public string Comentarios { get; set; } = string.Empty;
+    }
+}

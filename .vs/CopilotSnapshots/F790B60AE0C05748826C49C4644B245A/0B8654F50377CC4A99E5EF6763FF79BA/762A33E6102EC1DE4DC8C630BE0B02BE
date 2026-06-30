@@ -1,0 +1,133 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AgendarCitaPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,22,20,28" Spacing="14">
+
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <Button Text="←"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="White"
+                        TextColor="#0B1F4D"
+                        Clicked="OnVolverClicked" />
+                <Label Grid.Column="1"
+                       Text="Agendar cita"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D"
+                       VerticalTextAlignment="Center" />
+            </Grid>
+
+            <Label Text="Completa los datos para reservar tu servicio"
+                   FontSize="14"
+                   TextColor="#64748B" />
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#18000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Servicio" FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+                    <Picker Title="Selecciona un servicio"
+                            ItemsSource="{Binding Servicios}"
+                            SelectedItem="{Binding ServicioSeleccionado}" />
+                    <Label Text="{Binding ServicioError}"
+                           TextColor="#D92D20"
+                           FontSize="12"
+                           IsVisible="{Binding HasServicioError}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#18000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <Label Text="Fecha" FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+                    <Label Grid.Column="1" Text="Hora" FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+
+                    <DatePicker Grid.Row="1"
+                                Date="{Binding FechaSeleccionada}"
+                                MinimumDate="{Binding FechaMinima}" />
+
+                    <Picker Grid.Row="1"
+                            Grid.Column="1"
+                            Title="Selecciona hora"
+                            ItemsSource="{Binding Horarios}"
+                            SelectedItem="{Binding HoraSeleccionada}" />
+
+                    <Label Grid.Row="2"
+                           Text="{Binding FechaError}"
+                           TextColor="#D92D20"
+                           FontSize="12"
+                           IsVisible="{Binding HasFechaError}" />
+
+                    <Label Grid.Row="2"
+                           Grid.Column="1"
+                           Text="{Binding HoraError}"
+                           TextColor="#D92D20"
+                           FontSize="12"
+                           IsVisible="{Binding HasHoraError}" />
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#18000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Vehículo" FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+
+                    <Entry Placeholder="Marca del vehículo"
+                           Text="{Binding MarcaVehiculo}" />
+
+                    <Entry Placeholder="Modelo"
+                           Text="{Binding ModeloVehiculo}" />
+
+                    <Entry Placeholder="Placas"
+                           Text="{Binding Placas}" />
+
+                    <Label Text="{Binding PlacasError}"
+                           TextColor="#D92D20"
+                           FontSize="12"
+                           IsVisible="{Binding HasPlacasError}" />
+
+                    <Editor Placeholder="Comentarios (opcional)"
+                            AutoSize="TextChanges"
+                            MaxLength="240"
+                            HeightRequest="90"
+                            Text="{Binding Comentarios}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button Text="Confirmar cita"
+                    HeightRequest="50"
+                    CornerRadius="12"
+                    BackgroundColor="#3B82F6"
+                    TextColor="White"
+                    FontSize="17"
+                    FontAttributes="Bold"
+                    Command="{Binding ConfirmarCitaCommand}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

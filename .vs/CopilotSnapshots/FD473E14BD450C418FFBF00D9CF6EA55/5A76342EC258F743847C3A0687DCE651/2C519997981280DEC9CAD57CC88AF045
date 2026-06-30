@@ -1,0 +1,261 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class CitaService : FirestoreBaseService
+    {
+        private const string ColeccionCitas = "citas";
+        private static readonly HashSet<string> EstadosPermitidos = new(StringComparer.Ordinal)
+        {
+            "Pendiente",
+            "Confirmada",
+            "En proceso",
+            "Finalizada",
+            "Cancelada"
+        };
+
+        public CitaService(HttpClient httpClient, string apiKey)
+            : base(httpClient, apiKey)
+        {
+        }
+
+        public Task<string> CrearCitaAsync(DateTime fecha, string estado, string clienteId, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "fecha", fecha },
+                { "estado", estado },
+                { "clienteId", clienteId }
+            };
+
+            return CrearDocumentoAsync(ColeccionCitas, datos, idToken);
+        }
+
+        public Task<string> GuardarCitaAsync(
+            string usuarioId,
+            string vehiculoId,
+            string servicioId,
+            DateTime fecha,
+            TimeSpan hora,
+            string vehiculo,
+            string placas,
+            string servicio,
+            string comentarios,
+            string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "usuarioId", usuarioId },
+                { "clienteId", usuarioId },
+                { "vehiculoId", vehiculoId },
+                { "servicioId", servicioId },
+                { "servicio", servicio },
+                { "fecha", fecha.Date },
+                { "hora", hora.ToString(@"hh\:mm") },
+                { "vehiculo", vehiculo },
+                { "placas", placas },
+                { "comentarios", comentarios },
+                { "estado", "Pendiente" }
+            };
+
+            return CrearDocumentoAsync(ColeccionCitas, datos, idToken);
+        }
+
+        public Task<string> ObtenerCitasAsync(string? idToken = null)
+        {
+            return ObtenerDocumentosAsync(ColeccionCitas, idToken);
+        }
+
+        public async Task<List<CitaResumen>> ObtenerCitasPorClienteAsync(string clienteId, string? idToken = null)
+        {
+            var json = await ObtenerCitasAsync(idToken);
+            var citas = ParsearCitas(json)
+                .Where(c => string.Equals(c.ClienteId, clienteId, StringComparison.Ordinal))
+                .OrderByDescending(c => c.Fecha)
+                .ThenBy(c => c.Hora)
+                .ToList();
+
+            return citas;
+        }
+
+        public async Task<List<CitaResumen>> ObtenerTodasCitasAsync(string? idToken = null)
+        {
+            var json = await ObtenerCitasAsync(idToken);
+            return ParsearCitas(json)
+                .OrderBy(c => c.Hora)
+                .ToList();
+        }
+
+        public async Task CancelarCitaAsync(string citaId, string? idToken = null)
+        {
+            await ActualizarEstadoCitaAsync(citaId, "Cancelada", idToken);
+        }
+
+        public Task ConfirmarCitaAsync(string citaId, string? idToken = null)
+        {
+            return ActualizarEstadoCitaAsync(citaId, "Confirmada", idToken);
+        }
+
+        public Task IniciarServicioCitaAsync(string citaId, string? idToken = null)
+        {
+            return ActualizarEstadoCitaAsync(citaId, "En proceso", idToken);
+        }
+
+        public Task FinalizarCitaAsync(string citaId, string? idToken = null)
+        {
+            return ActualizarEstadoCitaAsync(citaId, "Finalizada", idToken);
+        }
+
+        public async Task ActualizarEstadoCitaAsync(string citaId, string estado, string? idToken = null)
+        {
+            if (string.IsNullOrWhiteSpace(citaId))
+            {
+                throw new ArgumentException("El id de la cita es obligatorio.", nameof(citaId));
+            }
+
+            if (!EstadosPermitidos.Contains(estado))
+            {
+                throw new ArgumentException("El estado de la cita no es válido.", nameof(estado));
+            }
+
+            var datos = new Dictionary<string, object>
+            {
+                { "estado", estado }
+            };
+
+            await ActualizarDocumentoAsync(ColeccionCitas, citaId, datos, idToken);
+        }
+
+        public Task<string> ActualizarCitaAsync(string citaId, DateTime fecha, string estado, string clienteId, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "fecha", fecha },
+                { "estado", estado },
+                { "clienteId", clienteId }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionCitas, citaId, datos, idToken);
+        }
+
+        public Task EliminarCitaAsync(string citaId, string? idToken = null)
+        {
+            return EliminarDocumentoAsync(ColeccionCitas, citaId, idToken);
+        }
+
+        private static string ObtenerIdDocumento(JsonElement documento)
+        {
+            if (!documento.TryGetProperty("name", out var nameElement))
+            {
+                return string.Empty;
+            }
+
+            var name = nameElement.GetString() ?? string.Empty;
+            var partes = name.Split('/');
+            return partes.Length == 0 ? string.Empty : partes[^1];
+        }
+
+        private static string? LeerString(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+            {
+                return null;
+            }
+
+            return stringValueElement.GetString();
+        }
+
+        private static DateTime LeerFecha(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return DateTime.Today;
+            }
+
+            if (propiedadElement.TryGetProperty("timestampValue", out var timestampElement))
+            {
+                var timestamp = timestampElement.GetString();
+                if (DateTime.TryParse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
+                {
+                    return parsed.ToLocalTime().Date;
+                }
+            }
+
+            if (propiedadElement.TryGetProperty("stringValue", out var stringElement))
+            {
+                var value = stringElement.GetString();
+                if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+                {
+                    return parsed.Date;
+                }
+            }
+
+            return DateTime.Today;
+        }
+
+        private static List<CitaResumen> ParsearCitas(string json)
+        {
+            using var document = JsonDocument.Parse(json);
+
+            var citas = new List<CitaResumen>();
+            if (!document.RootElement.TryGetProperty("documents", out var documentsElement) ||
+                documentsElement.ValueKind != JsonValueKind.Array)
+            {
+                return citas;
+            }
+
+            foreach (var doc in documentsElement.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                var cita = new CitaResumen
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    ClienteId = LeerString(fields, "clienteId")
+                        ?? LeerString(fields, "usuarioId")
+                        ?? string.Empty,
+                    NombreCliente = LeerString(fields, "clienteNombre") ?? string.Empty,
+                    Servicio = LeerString(fields, "servicio") ?? string.Empty,
+                    Fecha = LeerFecha(fields, "fecha"),
+                    Hora = LeerString(fields, "hora") ?? string.Empty,
+                    Estado = LeerString(fields, "estado") ?? "Pendiente",
+                    Vehiculo = LeerString(fields, "vehiculo") ?? string.Empty,
+                    Placas = LeerString(fields, "placas") ?? string.Empty,
+                    Comentarios = LeerString(fields, "comentarios") ?? string.Empty
+                };
+
+                citas.Add(cita);
+            }
+
+            return citas;
+        }
+    }
+
+    public class CitaResumen
+    {
+        public string Id { get; set; } = string.Empty;
+        public string ClienteId { get; set; } = string.Empty;
+        public string NombreCliente { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string Vehiculo { get; set; } = string.Empty;
+        public string Placas { get; set; } = string.Empty;
+        public string Comentarios { get; set; } = string.Empty;
+    }
+}

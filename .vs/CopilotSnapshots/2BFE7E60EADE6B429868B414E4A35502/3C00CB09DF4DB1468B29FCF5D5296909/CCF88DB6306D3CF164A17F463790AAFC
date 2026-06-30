@@ -1,0 +1,313 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class AgendarCitaViewModel : INotifyPropertyChanged
+    {
+        private readonly CitaService _citaService;
+        private readonly SessionService _sessionService;
+        private readonly VehiculoService _vehiculoService;
+
+        private string _servicioSeleccionado = string.Empty;
+        private DateTime _fechaSeleccionada;
+        private TimeSpan _horaSeleccionada;
+        private Vehiculo? _vehiculoSeleccionado;
+        private string _placas = string.Empty;
+        private string _comentarios = string.Empty;
+
+        private string _servicioError = string.Empty;
+        private string _fechaError = string.Empty;
+        private string _horaError = string.Empty;
+        private string _placasError = string.Empty;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public AgendarCitaViewModel(CitaService citaService, SessionService sessionService, VehiculoService vehiculoService)
+        {
+            _citaService = citaService;
+            _sessionService = sessionService;
+            _vehiculoService = vehiculoService;
+
+            Servicios = new ObservableCollection<string>
+            {
+                "Lavado básico",
+                "Lavado premium",
+                "Detallado profesional"
+            };
+
+            FechaMinima = DateTime.Today;
+            FechaSeleccionada = DateTime.Today;
+            HoraSeleccionada = default;
+            Vehiculos = new ObservableCollection<Vehiculo>();
+
+            ConfirmarCitaCommand = new Command(async () => await ConfirmarCitaAsync(), () => !IsBusy);
+        }
+
+        public ObservableCollection<string> Servicios { get; }
+
+        public ObservableCollection<Vehiculo> Vehiculos { get; }
+
+        public DateTime FechaMinima { get; }
+
+        public ICommand ConfirmarCitaCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+        public Func<Task>? NavegarAMisCitasAsync { get; set; }
+
+        public string ServicioSeleccionado
+        {
+            get => _servicioSeleccionado;
+            set => SetProperty(ref _servicioSeleccionado, value);
+        }
+
+        public DateTime FechaSeleccionada
+        {
+            get => _fechaSeleccionada;
+            set => SetProperty(ref _fechaSeleccionada, value);
+        }
+
+        public TimeSpan HoraSeleccionada
+        {
+            get => _horaSeleccionada;
+            set => SetProperty(ref _horaSeleccionada, value);
+        }
+
+        public Vehiculo? VehiculoSeleccionado
+        {
+            get => _vehiculoSeleccionado;
+            set
+            {
+                if (SetProperty(ref _vehiculoSeleccionado, value))
+                {
+                    Placas = value?.Placas ?? string.Empty;
+                }
+            }
+        }
+
+        public string Placas
+        {
+            get => _placas;
+            set => SetProperty(ref _placas, value);
+        }
+
+        public string Comentarios
+        {
+            get => _comentarios;
+            set => SetProperty(ref _comentarios, value);
+        }
+
+        public string ServicioError
+        {
+            get => _servicioError;
+            private set
+            {
+                if (SetProperty(ref _servicioError, value))
+                {
+                    OnPropertyChanged(nameof(HasServicioError));
+                }
+            }
+        }
+
+        public bool HasServicioError => !string.IsNullOrWhiteSpace(ServicioError);
+
+        public string FechaError
+        {
+            get => _fechaError;
+            private set
+            {
+                if (SetProperty(ref _fechaError, value))
+                {
+                    OnPropertyChanged(nameof(HasFechaError));
+                }
+            }
+        }
+
+        public bool HasFechaError => !string.IsNullOrWhiteSpace(FechaError);
+
+        public string HoraError
+        {
+            get => _horaError;
+            private set
+            {
+                if (SetProperty(ref _horaError, value))
+                {
+                    OnPropertyChanged(nameof(HasHoraError));
+                }
+            }
+        }
+
+        public bool HasHoraError => !string.IsNullOrWhiteSpace(HoraError);
+
+        public string PlacasError
+        {
+            get => _placasError;
+            private set
+            {
+                if (SetProperty(ref _placasError, value))
+                {
+                    OnPropertyChanged(nameof(HasPlacasError));
+                }
+            }
+        }
+
+        public bool HasPlacasError => !string.IsNullOrWhiteSpace(PlacasError);
+
+        public bool IsBusy { get; private set; }
+
+        public async Task CargarVehiculosAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                Vehiculos.Clear();
+                return;
+            }
+
+            var vehiculos = await _vehiculoService.ObtenerVehiculosPorClienteAsync(uid);
+            Vehiculos.Clear();
+            foreach (var vehiculo in vehiculos)
+            {
+                Vehiculos.Add(vehiculo);
+            }
+        }
+
+        private async Task ConfirmarCitaAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            LimpiarErrores();
+
+            if (!ValidarCampos())
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+                ((Command)ConfirmarCitaCommand).ChangeCanExecute();
+
+                var vehiculo = VehiculoSeleccionado?.NombreCompleto ?? string.Empty;
+
+                var clienteId = _sessionService.ObtenerUid();
+                if (string.IsNullOrWhiteSpace(clienteId))
+                {
+                    if (MostrarAlertaAsync != null)
+                    {
+                        await MostrarAlertaAsync("Sesión", "Debes iniciar sesión para agendar una cita.", "OK");
+                    }
+                    return;
+                }
+
+                await GuardarCitaAsync(clienteId, vehiculo);
+
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Éxito", "Tu cita fue agendada correctamente.", "OK");
+                }
+
+                if (NavegarAMisCitasAsync != null)
+                {
+                    await NavegarAMisCitasAsync();
+                }
+            }
+            catch
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", "No fue posible agendar la cita. Intenta nuevamente.", "OK");
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+                ((Command)ConfirmarCitaCommand).ChangeCanExecute();
+            }
+        }
+
+        private bool ValidarCampos()
+        {
+            var esValido = true;
+
+            if (string.IsNullOrWhiteSpace(ServicioSeleccionado))
+            {
+                ServicioError = "Selecciona un servicio.";
+                esValido = false;
+            }
+
+            if (FechaSeleccionada < FechaMinima)
+            {
+                FechaError = "Selecciona una fecha.";
+                esValido = false;
+            }
+
+            if (HoraSeleccionada == default)
+            {
+                HoraError = "Selecciona una hora.";
+                esValido = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Placas))
+            {
+                PlacasError = "Ingresa las placas del vehículo.";
+                esValido = false;
+            }
+
+            if (VehiculoSeleccionado == null)
+            {
+                PlacasError = "Selecciona un vehículo registrado.";
+                esValido = false;
+            }
+
+            return esValido;
+        }
+
+        private Task GuardarCitaAsync(string clienteId, string vehiculo)
+        {
+            return _citaService.GuardarCitaAsync(
+                clienteId: clienteId,
+                servicio: ServicioSeleccionado.Trim(),
+                fecha: FechaSeleccionada,
+                hora: HoraSeleccionada,
+                vehiculo: vehiculo,
+                placas: Placas.Trim(),
+                comentarios: Comentarios?.Trim() ?? string.Empty);
+        }
+
+        private void LimpiarErrores()
+        {
+            ServicioError = string.Empty;
+            FechaError = string.Empty;
+            HoraError = string.Empty;
+            PlacasError = string.Empty;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

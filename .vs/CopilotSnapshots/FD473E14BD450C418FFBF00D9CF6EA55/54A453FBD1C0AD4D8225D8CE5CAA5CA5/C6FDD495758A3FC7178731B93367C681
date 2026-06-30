@@ -1,0 +1,49 @@
+﻿using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class FirestoreBaseService
+    {
+        protected readonly HttpClient _httpClient;
+        protected readonly string _projectId;
+
+        public FirestoreBaseService(HttpClient httpClient, string projectId)
+        {
+            _httpClient = httpClient;
+            _projectId = projectId;
+        }
+
+        protected string BuildDocumentUrl(string documentPath)
+            => $"https://firestore.googleapis.com/v1/projects/{_projectId}/databases/(default)/documents/{documentPath}";
+
+        protected virtual async Task<bool> CrearDocumentoAsync(string documentPath, object payload)
+        {
+            var url = BuildDocumentUrl(documentPath);
+            var body = JsonSerializer.Serialize(payload);
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), url)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            };
+
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+
+        protected virtual async Task<JsonElement?> ObtenerDocumentoAsync(string documentPath)
+        {
+            var url = BuildDocumentUrl(documentPath);
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return null;
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.Clone();
+        }
+    }
+}

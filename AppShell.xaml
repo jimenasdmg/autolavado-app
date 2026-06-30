@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<shell:Shell
+    x:Class="AutoLavadoApp.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:shell="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:viewsAuth="clr-namespace:AutoLavadoApp.Views.Auth"
+    xmlns:viewsCliente="clr-namespace:AutoLavadoApp.Views.Cliente"
+    xmlns:viewsAdmin="clr-namespace:AutoLavadoApp.Views.Admin"
+    xmlns:viewsEmpleado="clr-namespace:AutoLavadoApp.Views.Empleado"
+    xmlns:viewsShared="clr-namespace:AutoLavadoApp.Views.Shared"
+    shell:Shell.TabBarBackgroundColor="White"
+    shell:Shell.TabBarTitleColor="#7B849B"
+    shell:Shell.TabBarUnselectedColor="#7B849B"
+    shell:Shell.TabBarForegroundColor="#0B1F5C"
+    BackgroundColor="#F5F7FB">
+
+  <shell:ShellContent
+      Title="Inicio"
+      ContentTemplate="{DataTemplate viewsAuth:LoginPage}"
+      Route="LoginPage" />
+
+  <shell:TabBar>
+    <shell:ShellContent Title="Inicio" ContentTemplate="{DataTemplate viewsCliente:HomePage}" Icon="home.svg" Route="HomePage" />
+    <shell:ShellContent Title="Mi Cuenta" ContentTemplate="{DataTemplate viewsCliente:MiCuentaPage}" Icon="account.svg" Route="MiCuentaPage" />
+  </shell:TabBar>
+
+</shell:Shell>

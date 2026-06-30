@@ -1,0 +1,130 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.EmpleadoCuentaPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="18,16,18,20" Spacing="12">
+                <Label Text="Cuenta"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D" />
+
+                <Border BackgroundColor="#1D4ED8"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14,10">
+                    <Border.Shadow>
+                        <Shadow Brush="#18000000" Offset="0,3" Radius="8" />
+                    </Border.Shadow>
+                    <HorizontalStackLayout Spacing="12">
+                        <Border WidthRequest="56"
+                                HeightRequest="56"
+                                BackgroundColor="#2563EB"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 28">
+                            <Label Text="{Binding InicialesUsuario}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalTextAlignment="Center" />
+                        </Border>
+                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                            <Label Text="{Binding NombreCompleto}" FontSize="19" FontAttributes="Bold" TextColor="White" />
+                            <Label Text="{Binding Email}" FontSize="13" TextColor="#DBEAFE" />
+                            <Label Text="Empleado" FontSize="12" FontAttributes="Bold" TextColor="#BFDBFE" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="12">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Acceso privado"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#0B1F4D" />
+                        <Label Text="Por seguridad, el perfil y la configuración avanzada están administrados por BRIZZO."
+                               FontSize="13"
+                               TextColor="#64748B" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="12"
+                        IsVisible="{Binding PuedeMensajeria}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Mensajes"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#0B1F4D" />
+
+                        <Entry Placeholder="Escribe un mensaje al administrador"
+                               Text="{Binding MensajeNuevo}"
+                               MaxLength="220" />
+
+                        <Button Text="Enviar mensaje"
+                                HeightRequest="42"
+                                CornerRadius="10"
+                                BackgroundColor="#2563EB"
+                                TextColor="White"
+                                Command="{Binding EnviarMensajeCommand}" />
+
+                        <CollectionView ItemsSource="{Binding MensajesInternos}" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BackgroundColor="#F8FAFC"
+                                            Stroke="#E2E8F0"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 12"
+                                            Padding="10"
+                                            Margin="0,0,0,8">
+                                        <VerticalStackLayout Spacing="4">
+                                            <Label Text="{Binding Mensaje}" TextColor="#0F172A" FontSize="13" />
+                                            <Label Text="{Binding Fecha, StringFormat='{0:dd/MM/yyyy HH:mm}'}" TextColor="#64748B" FontSize="11" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Button Text="Cerrar sesión"
+                        HeightRequest="44"
+                        CornerRadius="16"
+                        BorderWidth="1"
+                        BorderColor="#FCA5A5"
+                        BackgroundColor="Transparent"
+                        TextColor="#B91C1C"
+                        FontFamily="OpenSansSemibold"
+                        FontSize="14"
+                        Padding="14,10"
+                        ImageSource="{FontImageSource Glyph=&#xF2F5;, FontFamily=FontAwesomeSolid, Size=14, Color=#B91C1C}"
+                        ContentLayout="Left,8"
+                        Command="{Binding CerrarSesionCommand}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid IsVisible="{Binding IsBusy}"
+              BackgroundColor="#80F5F7FB"
+              InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsBusy}" Color="#3B82F6" WidthRequest="42" HeightRequest="42" />
+                <Label Text="Cargando cuenta..." FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

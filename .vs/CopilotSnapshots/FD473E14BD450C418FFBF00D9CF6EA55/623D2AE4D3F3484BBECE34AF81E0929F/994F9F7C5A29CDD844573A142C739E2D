@@ -1,0 +1,189 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services
+{
+    public class EmpleadoService : FirestoreBaseService
+    {
+        private const string ColeccionUsuarios = "usuarios";
+        private const string ColeccionEmpleados = "empleados";
+
+        public EmpleadoService(HttpClient httpClient)
+            : base(httpClient)
+        {
+        }
+
+        public Task<string> CrearEmpleadoAsync(string id, string nombre, string apellidoPaterno, string apellidoMaterno, string email, string rol, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "id", id },
+                { "nombre", nombre },
+                { "apellidoPaterno", apellidoPaterno },
+                { "apellidoMaterno", apellidoMaterno },
+                { "email", email },
+                { "correo", email },
+                { "rol", rol },
+                { "activo", true }
+            };
+
+            return CrearODocumentoAsync(ColeccionUsuarios, id, datos, idToken);
+        }
+
+        public async Task<List<EmpleadoAdminResumen>> ObtenerEmpleadosAsync(string? idToken = null)
+        {
+            var json = await ObtenerDocumentosAsync(ColeccionUsuarios, idToken);
+            using var document = JsonDocument.Parse(json);
+
+            var empleados = new List<EmpleadoAdminResumen>();
+            if (!document.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+            {
+                return empleados;
+            }
+
+            foreach (var doc in docs.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                var rol = LeerString(fields, "rol") ?? "cliente";
+                if (rol != "empleado" && rol != "admin")
+                {
+                    continue;
+                }
+
+                empleados.Add(new EmpleadoAdminResumen
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    Nombre = LeerString(fields, "nombre") ?? string.Empty,
+                    ApellidoPaterno = LeerString(fields, "apellidoPaterno") ?? string.Empty,
+                    ApellidoMaterno = LeerString(fields, "apellidoMaterno") ?? string.Empty,
+                    Email = LeerString(fields, "email") ?? string.Empty,
+                    Rol = rol,
+                    Activo = LeerBool(fields, "activo") ?? true
+                });
+            }
+
+            return empleados
+                .OrderBy(e => e.Nombre)
+                .ToList();
+        }
+
+        public async Task<List<EmpleadoAdminResumen>> ObtenerEmpleadosDesdeColeccionEmpleadosAsync(string? idToken = null)
+        {
+            var json = await ObtenerDocumentosAsync(ColeccionEmpleados, idToken);
+            using var document = JsonDocument.Parse(json);
+
+            var empleados = new List<EmpleadoAdminResumen>();
+            if (!document.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+            {
+                return empleados;
+            }
+
+            foreach (var doc in docs.EnumerateArray())
+            {
+                if (!doc.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                empleados.Add(new EmpleadoAdminResumen
+                {
+                    Id = ObtenerIdDocumento(doc),
+                    Nombre = LeerString(fields, "nombre") ?? string.Empty,
+                    ApellidoPaterno = LeerString(fields, "apellidoPaterno") ?? string.Empty,
+                    ApellidoMaterno = LeerString(fields, "apellidoMaterno") ?? string.Empty,
+                    Email = LeerString(fields, "email") ?? string.Empty,
+                    Rol = LeerString(fields, "rol") ?? "empleado",
+                    Activo = LeerBool(fields, "activo") ?? true
+                });
+            }
+
+            return empleados
+                .OrderBy(e => e.Nombre)
+                .ToList();
+        }
+
+        public Task ActualizarRolAsync(string empleadoId, string rol, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "rol", rol }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionUsuarios, empleadoId, datos, idToken);
+        }
+
+        public Task ActualizarEstadoAsync(string empleadoId, bool activo, string? idToken = null)
+        {
+            var datos = new Dictionary<string, object>
+            {
+                { "activo", activo }
+            };
+
+            return ActualizarDocumentoAsync(ColeccionUsuarios, empleadoId, datos, idToken);
+        }
+
+        private static string ObtenerIdDocumento(JsonElement documento)
+        {
+            if (!documento.TryGetProperty("name", out var nameElement))
+            {
+                return string.Empty;
+            }
+
+            var name = nameElement.GetString() ?? string.Empty;
+            var partes = name.Split('/');
+            return partes.Length == 0 ? string.Empty : partes[^1];
+        }
+
+        private static string? LeerString(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+            {
+                return null;
+            }
+
+            return stringValueElement.GetString();
+        }
+
+        private static bool? LeerBool(JsonElement fields, string propiedad)
+        {
+            if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+            {
+                return null;
+            }
+
+            if (!propiedadElement.TryGetProperty("booleanValue", out var boolElement))
+            {
+                return null;
+            }
+
+            return boolElement.GetBoolean();
+        }
+    }
+
+    public class EmpleadoAdminResumen
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string ApellidoPaterno { get; set; } = string.Empty;
+        public string ApellidoMaterno { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Rol { get; set; } = "empleado";
+        public bool Activo { get; set; }
+
+        public string NombreCompleto => $"{Nombre} {ApellidoPaterno} {ApellidoMaterno}".Trim();
+    }
+}

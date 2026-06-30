@@ -1,0 +1,63 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class EmpleadoViewModel : INotifyPropertyChanged
+    {
+        private int _siguienteObservacionId = 1;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public ObservableCollection<Cita> ServiciosAsignados { get; } = new ObservableCollection<Cita>();
+
+        public IEnumerable<Cita> ObtenerServicios()
+        {
+            return ServiciosAsignados;
+        }
+
+        public bool ActualizarEstadoServicio(int citaId, string nuevoEstado)
+        {
+            var cita = ServiciosAsignados.FirstOrDefault(c => c.Id == citaId);
+            if (cita == null || string.IsNullOrWhiteSpace(nuevoEstado))
+            {
+                return false;
+            }
+
+            cita.Estado = nuevoEstado;
+            OnPropertyChanged(nameof(ServiciosAsignados));
+            return true;
+        }
+
+        public bool AgregarObservacionACita(int citaId, string comentario)
+        {
+            var cita = ServiciosAsignados.FirstOrDefault(c => c.Id == citaId);
+            if (cita == null || string.IsNullOrWhiteSpace(comentario))
+            {
+                return false;
+            }
+
+            var observacion = new Observacion
+            {
+                Id = _siguienteObservacionId++,
+                Comentario = comentario,
+                Fecha = DateTime.Now,
+                Cita = cita
+            };
+
+            cita.Observaciones.Add(observacion);
+            OnPropertyChanged(nameof(ServiciosAsignados));
+            return true;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

@@ -1,0 +1,52 @@
+﻿using Microsoft.Extensions.Logging;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp
+{
+    public static class MauiProgram
+    {
+        private const string FirebaseApiKey = "AIzaSyCa8N_kUd0RNEGxdK-ainHfk3DrfU_A4aA";
+
+        public static MauiApp CreateMauiApp()
+        {
+            var builder = MauiApp.CreateBuilder();
+            builder
+                .UseMauiApp<App>()
+                .ConfigureFonts(fonts =>
+                {
+                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                    fonts.AddFont("fa-solid-900.ttf", "FontAwesomeSolid");
+                });
+
+            builder.Services.AddHttpClient<UsuarioService>();
+            builder.Services.AddSingleton<AuthService>();
+            builder.Services.AddSingleton<SessionService>();
+            builder.Services.AddSingleton(sp => new CitaService(sp.GetRequiredService<HttpClient>(), FirebaseApiKey));
+            builder.Services.AddSingleton(sp => new VehiculoService(sp.GetRequiredService<HttpClient>(), FirebaseApiKey));
+            builder.Services.AddSingleton(sp => new ObservacionService(sp.GetRequiredService<HttpClient>(), FirebaseApiKey));
+            builder.Services.AddSingleton(sp => new EmpleadoService(sp.GetRequiredService<HttpClient>(), FirebaseApiKey));
+            builder.Services.AddSingleton(sp => new ServicioService(sp.GetRequiredService<HttpClient>(), FirebaseApiKey));
+            builder.Services.AddTransient<AutenticacionViewModel>();
+            builder.Services.AddTransient<RegisterViewModel>();
+            builder.Services.AddTransient<CitaViewModel>();
+            builder.Services.AddTransient<AgendarCitaViewModel>();
+            builder.Services.AddTransient<HomeViewModel>();
+            builder.Services.AddTransient<MisCitasViewModel>();
+            builder.Services.AddTransient<MisVehiculosViewModel>();
+            builder.Services.AddTransient<AgregarVehiculoViewModel>();
+            builder.Services.AddTransient<MiCuentaViewModel>();
+            builder.Services.AddTransient<EmpleadoViewModel>();
+            builder.Services.AddTransient<CrearEmpleadoViewModel>();
+            builder.Services.AddTransient<DetalleCitaViewModel>();
+            builder.Services.AddTransient<AdminViewModel>();
+
+#if DEBUG
+    		builder.Logging.AddDebug();
+#endif
+
+            return builder.Build();
+        }
+    }
+}

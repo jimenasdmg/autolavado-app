@@ -1,0 +1,175 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.MiCuentaPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="20,24,20,24" Spacing="14">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <Button Text="←"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="White"
+                        TextColor="#0B1F4D"
+                        Clicked="OnVolverClicked" />
+                <Label Grid.Column="1"
+                       Text="Mi cuenta"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D"
+                       VerticalTextAlignment="Center" />
+            </Grid>
+
+            <Border BackgroundColor="#0B1F4D"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16,14">
+                <Border.Shadow>
+                    <Shadow Brush="#22000000" Offset="0,5" Radius="12" />
+                </Border.Shadow>
+                <HorizontalStackLayout Spacing="12">
+                    <Border WidthRequest="54"
+                            HeightRequest="54"
+                            BackgroundColor="#1E3A8A"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 27">
+                        <Label Text="{Binding InicialesUsuario}"
+                               HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="White" />
+                    </Border>
+                    <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                        <Label Text="{Binding NombreCompleto}"
+                               FontSize="19"
+                               FontAttributes="Bold"
+                               TextColor="White" />
+                        <Label Text="{Binding Email}"
+                               FontSize="13"
+                               TextColor="#DBEAFE" />
+                        <Label Text="{Binding RolTexto}"
+                               FontSize="12"
+                               FontAttributes="Bold"
+                               TextColor="#BFDBFE" />
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Border.Shadow>
+                    <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Información personal"
+                           FontSize="17"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D" />
+
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="8">
+                        <Label Text="&#xF303;" FontFamily="FontAwesomeSolid" FontSize="12" TextColor="#3B82F6" />
+                        <Label Grid.Column="1" Text="{Binding Nombre}" FontSize="14" TextColor="#334155" />
+
+                        <Label Grid.Row="1" Text="&#xF15C;" FontFamily="FontAwesomeSolid" FontSize="12" TextColor="#3B82F6" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding ApellidoPaterno}" FontSize="14" TextColor="#334155" />
+
+                        <Label Grid.Row="2" Text="&#xF5A0;" FontFamily="FontAwesomeSolid" FontSize="12" TextColor="#3B82F6" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding ApellidoMaterno}" FontSize="14" TextColor="#334155" />
+
+                        <Label Grid.Row="3" Text="&#xF0E0;" FontFamily="FontAwesomeSolid" FontSize="12" TextColor="#3B82F6" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding Email}" FontSize="14" TextColor="#334155" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E7ECF4"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="12">
+                <Border.Shadow>
+                    <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="10">
+                    <Button Text="&#xF044;  Editar perfil"
+                            FontFamily="FontAwesomeSolid"
+                            HeightRequest="46"
+                            CornerRadius="12"
+                            TextColor="#0B1F4D"
+                            BackgroundColor="#EFF6FF"
+                            FontAttributes="Bold"
+                            Command="{Binding EditarPerfilCommand}" />
+
+                    <Button Text="&#xF013;  Configuración"
+                            FontFamily="FontAwesomeSolid"
+                            HeightRequest="46"
+                            CornerRadius="12"
+                            TextColor="#0B1F4D"
+                            BackgroundColor="#EFF6FF"
+                            FontAttributes="Bold"
+                            Command="{Binding ConfiguracionCommand}" />
+
+                    <Button Text="&#xF0F3;  Notificaciones"
+                            FontFamily="FontAwesomeSolid"
+                            HeightRequest="46"
+                            CornerRadius="12"
+                            TextColor="#0B1F4D"
+                            BackgroundColor="#EFF6FF"
+                            FontAttributes="Bold"
+                            Command="{Binding NotificacionesCommand}" />
+
+                    <Button Text="&#xF3ED;  Privacidad"
+                            FontFamily="FontAwesomeSolid"
+                            HeightRequest="46"
+                            CornerRadius="12"
+                            TextColor="#0B1F4D"
+                            BackgroundColor="#EFF6FF"
+                            FontAttributes="Bold"
+                            Command="{Binding PrivacidadCommand}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Button Text="Cerrar sesión"
+                    HeightRequest="44"
+                    CornerRadius="16"
+                    BorderWidth="1"
+                    BorderColor="#CBD5E1"
+                    BackgroundColor="Transparent"
+                    TextColor="#334155"
+                    FontFamily="OpenSansSemibold"
+                    FontSize="14"
+                    Padding="14,10"
+                    ImageSource="{FontImageSource Glyph=&#xF2F5;, FontFamily=FontAwesomeSolid, Size=14, Color=#334155}"
+                    ContentLayout="Left,8"
+                    Command="{Binding CerrarSesionCommand}" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid IsVisible="{Binding IsBusy}"
+              BackgroundColor="#80F5F7FB"
+              InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                   Color="#3B82F6"
+                                   WidthRequest="42"
+                                   HeightRequest="42" />
+                <Label Text="Cargando información..."
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

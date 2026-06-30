@@ -1,0 +1,44 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class MainPage : ContentPage
+{
+    private readonly AutenticacionViewModel vm;
+    private readonly CitaViewModel _citaViewModel;
+
+    public MainPage()
+    {
+        InitializeComponent();
+        vm = IPlatformApplication.Current?.Services.GetService<AutenticacionViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AutenticacionViewModel desde DI.");
+        _citaViewModel = IPlatformApplication.Current?.Services.GetService<CitaViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver CitaViewModel desde DI.");
+    }
+
+    private async void OnLoginClicked(object sender, EventArgs e)
+    {
+        bool ok = await vm.LoginAsync(txtEmail.Text, txtPassword.Text);
+
+        if (ok)
+        {
+            await DisplayAlert("Éxito", "Login correcto", "OK");
+            await Shell.Current.GoToAsync(nameof(HomePage));
+        }
+        else
+            await DisplayAlert("Error", vm.MensajeError, "OK");
+    }
+
+    private async void OnProbarFirebaseClicked(object sender, EventArgs e)
+    {
+        try
+        {
+            await _citaViewModel.CrearCitaAsync();
+            await DisplayAlert("Firebase", "La cita se guardó correctamente.", "OK");
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Firebase", $"Error al guardar cita: {ex.Message}", "OK");
+        }
+    }
+}

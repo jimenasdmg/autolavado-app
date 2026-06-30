@@ -1,0 +1,80 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDocPath() {
+      return /databases/$(database)/documents/usuarios/$(request.auth.uid);
+    }
+
+    function userDocExists() {
+      return isSignedIn() && exists(userDocPath());
+    }
+
+    function currentRole() {
+      return userDocExists() ? get(userDocPath()).data.rol : null;
+    }
+
+    function isAdmin() {
+      return currentRole() == 'Admin';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isCreatingOwnEmployeeProfile() {
+      return isSignedIn()
+        && request.resource.data.uid is string
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.rol == 'Empleado';
+    }
+
+    match /usuarios/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) || isAdmin();
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /empleados/{empleadoId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isCreatingOwnEmployeeProfile();
+      allow update, delete: if isAdmin();
+    }
+
+    match /citas/{citaId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /servicios/{servicioId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /vehiculos/{vehiculoId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    match /mensajes/{mensajeId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /notificaciones/{notificacionId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /observaciones/{observacionId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

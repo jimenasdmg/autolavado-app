@@ -1,0 +1,127 @@
+﻿using System;
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public sealed class FirebaseServiceException : Exception
+    {
+        public FirebaseServiceException(string userMessage, string errorCode = "FIREBASE_ERROR", Exception? innerException = null)
+            : base(userMessage, innerException)
+        {
+            ErrorCode = errorCode;
+        }
+
+        public string ErrorCode { get; }
+    }
+
+    public static class FirebaseErrorMapper
+    {
+        public static string MapearErrorAuth(string responseBody)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                if (document.RootElement.TryGetProperty("error", out var errorElement) &&
+                    errorElement.TryGetProperty("message", out var messageElement))
+                {
+                    var message = messageElement.GetString() ?? string.Empty;
+                    return message switch
+                    {
+                        "EMAIL_NOT_FOUND" => "No encontramos una cuenta con ese correo.",
+                        "INVALID_PASSWORD" => "La contraseña no es correcta.",
+                        "INVALID_LOGIN_CREDENTIALS" => "Correo o contraseña inválidos.",
+                        "USER_DISABLED" => "Tu cuenta está deshabilitada. Contacta soporte.",
+                        "EMAIL_EXISTS" => "Este correo ya está registrado.",
+                        "INVALID_EMAIL" => "El correo electrónico no es válido.",
+                        "WEAK_PASSWORD : Password should be at least 6 characters" => "La contraseña debe tener al menos 6 caracteres.",
+                        _ => "No pudimos completar la autenticación. Intenta nuevamente."
+                    };
+                }
+            }
+            catch
+            {
+            }
+
+            return "No fue posible autenticar con Firebase.";
+        }
+
+        public static FirebaseServiceException MapearErrorHttp(HttpStatusCode statusCode, string? responseBody, string defaultMessage)
+        {
+            if (statusCode == HttpStatusCode.Forbidden || statusCode == HttpStatusCode.Unauthorized)
+            {
+                return new FirebaseServiceException("No tienes permisos para realizar esta acción.", "PERMISSION_DENIED");
+            }
+
+            if (statusCode == HttpStatusCode.RequestTimeout || statusCode == HttpStatusCode.GatewayTimeout)
+            {
+                return new FirebaseServiceException("La operación tardó demasiado. Intenta nuevamente.", "TIMEOUT");
+            }
+
+            if ((int)statusCode >= 500)
+            {
+                return new FirebaseServiceException("Firebase no está disponible por el momento. Intenta más tarde.", "SERVER_UNAVAILABLE");
+            }
+
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+                try
+                {
+                    using var document = JsonDocument.Parse(responseBody);
+                    if (document.RootElement.TryGetProperty("error", out var errorElement))
+                    {
+                        var code = errorElement.TryGetProperty("status", out var statusElement)
+                            ? statusElement.GetString() ?? "FIREBASE_ERROR"
+                            : "FIREBASE_ERROR";
+
+                        var message = errorElement.TryGetProperty("message", out var messageElement)
+                            ? messageElement.GetString() ?? string.Empty
+                            : string.Empty;
+
+                        if (code == "PERMISSION_DENIED")
+                        {
+                            return new FirebaseServiceException("No tienes permisos para acceder a esta información.", code);
+                        }
+
+                        if (code == "DEADLINE_EXCEEDED")
+                        {
+                            return new FirebaseServiceException("La solicitud excedió el tiempo de espera. Intenta nuevamente.", code);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(message))
+                        {
+                            return new FirebaseServiceException("No pudimos procesar tu solicitud en este momento.", code);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return new FirebaseServiceException(defaultMessage, "FIREBASE_ERROR");
+        }
+
+        public static FirebaseServiceException MapearExcepcion(Exception ex, string defaultMessage)
+        {
+            if (ex is FirebaseServiceException firebaseEx)
+            {
+                return firebaseEx;
+            }
+
+            if (ex is TaskCanceledException)
+            {
+                return new FirebaseServiceException("La operación tardó demasiado. Verifica tu conexión e intenta nuevamente.", "TIMEOUT", ex);
+            }
+
+            if (ex is HttpRequestException)
+            {
+                return new FirebaseServiceException("Sin conexión a internet. Revisa tu red e intenta nuevamente.", "NO_INTERNET", ex);
+            }
+
+            return new FirebaseServiceException(defaultMessage, "UNEXPECTED_ERROR", ex);
+        }
+    }
+}

@@ -1,0 +1,17 @@
+﻿<VerticalStackLayout Padding="30" Spacing="15">
+
+    <Label Text="Login"
+           FontSize="24"
+           HorizontalOptions="Center" />
+
+    <Entry x:Name="txtEmail"
+           Placeholder="Email" />
+
+    <Entry x:Name="txtPassword"
+           Placeholder="Password"
+           IsPassword="True" />
+
+    <Button Text="Iniciar sesión"
+            Clicked="OnLoginClicked"/>
+
+</VerticalStackLayout>

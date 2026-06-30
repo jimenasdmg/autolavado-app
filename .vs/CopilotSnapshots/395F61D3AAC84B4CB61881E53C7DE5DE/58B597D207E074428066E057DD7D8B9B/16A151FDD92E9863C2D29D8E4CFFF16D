@@ -1,0 +1,29 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace AutoLavadoApp.Models
+{
+    public static class EstadosCita
+    {
+        public const string Pendiente = "pendiente";
+        public const string Confirmada = "confirmada";
+        public const string EnProceso = "en_proceso";
+        public const string Finalizada = "finalizada";
+        public const string Cancelada = "cancelada";
+    }
+
+    public class Cita
+    {
+        public string Id { get; set; } = string.Empty;
+        public string UsuarioId { get; set; } = string.Empty;
+        public string VehiculoId { get; set; } = string.Empty;
+        public string ServicioId { get; set; } = string.Empty;
+        public string EmpleadoId { get; set; } = string.Empty;
+
+        public DateTime Fecha { get; set; } = DateTime.Now;
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = EstadosCita.Pendiente;
+        public string Observaciones { get; set; } = string.Empty;
+    }
+}

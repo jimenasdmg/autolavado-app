@@ -1,0 +1,61 @@
+﻿using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Data;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Auth;
+
+public class AuthService
+{
+    private readonly HttpClient _httpClient;
+    private readonly UsuarioService _usuarioService;
+    private readonly SessionService _sessionService;
+
+    public AuthService(HttpClient httpClient, UsuarioService usuarioService, SessionService sessionService)
+    {
+        _httpClient = httpClient;
+        _usuarioService = usuarioService;
+        _sessionService = sessionService;
+    }
+
+    public async Task<bool> LoginAsync(string email, string password)
+    {
+        return await Task.FromResult(!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password));
+    }
+
+    public async Task<AuthResult> RegisterAsync(string email, string password)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            return new AuthResult
+            {
+                IsSuccess = false,
+                ErrorMessage = "Email y contraseña son requeridos."
+            };
+        }
+
+        try
+        {
+            // Simulate user registration - replace with actual Firebase/API call
+            var userId = Guid.NewGuid().ToString();
+            var idToken = Guid.NewGuid().ToString("N");
+            
+            return new AuthResult
+            {
+                IsSuccess = true,
+                UserId = userId,
+                IdToken = idToken
+            };
+        }
+        catch (Exception ex)
+        {
+            return new AuthResult
+            {
+                IsSuccess = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+}

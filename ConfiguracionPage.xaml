@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Cliente.ConfiguracionPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="18,18,18,22" Spacing="14">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Button WidthRequest="42"
+                            HeightRequest="42"
+                            CornerRadius="12"
+                            BackgroundColor="#0B1F4D"
+                            TextColor="White"
+                            FontFamily="FontAwesomeSolid"
+                            FontSize="16"
+                            Text="&#xF060;"
+                            Clicked="OnVolverClicked" />
+                    <Label Grid.Column="1"
+                           Text="Configuración"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D"
+                           VerticalTextAlignment="Center" />
+                </Grid>
+
+                <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 16" Padding="14">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="CUENTA" FontSize="13" FontAttributes="Bold" TextColor="#64748B" />
+                        <Button Text="Cambiar contraseña"
+                                HeightRequest="42"
+                                CornerRadius="10"
+                                BackgroundColor="#EFF6FF"
+                                TextColor="#1E40AF"
+                                Command="{Binding CambiarPasswordCommand}" />
+                        <Button Text="Cerrar sesión"
+                                HeightRequest="42"
+                                CornerRadius="10"
+                                BorderWidth="1"
+                                BorderColor="#FCA5A5"
+                                BackgroundColor="Transparent"
+                                TextColor="#B91C1C"
+                                Command="{Binding CerrarSesionCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 16" Padding="14">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="PREFERENCIAS" FontSize="13" FontAttributes="Bold" TextColor="#64748B" />
+                        <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                            <Label Text="Notificaciones" TextColor="#334155" VerticalTextAlignment="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding NotificacionesActivas}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                            <Label Text="Modo oscuro (Próximamente)" TextColor="#334155" VerticalTextAlignment="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding TemaOscuro}" IsEnabled="False" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 16" Padding="14" IsVisible="{Binding EsAdmin}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="SISTEMA" FontSize="13" FontAttributes="Bold" TextColor="#64748B" />
+                        <Button Text="Información de Firebase"
+                                HeightRequest="40"
+                                CornerRadius="10"
+                                BackgroundColor="#EFF6FF"
+                                TextColor="#1E40AF"
+                                Command="{Binding InfoFirebaseCommand}" />
+                        <Button Text="Gestión del sistema"
+                                HeightRequest="40"
+                                CornerRadius="10"
+                                BackgroundColor="#EFF6FF"
+                                TextColor="#1E40AF"
+                                IsEnabled="False" />
+                        <Button Text="Cerrar todas las sesiones"
+                                HeightRequest="40"
+                                CornerRadius="10"
+                                BackgroundColor="#F1F5F9"
+                                TextColor="#475569"
+                                IsEnabled="False" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 16" Padding="14">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="ACERCA DE" FontSize="13" FontAttributes="Bold" TextColor="#64748B" />
+                        <Label Text="BRIZZO AutoLavado" TextColor="#0B1F4D" FontAttributes="Bold" />
+                        <Label Text="Versión 1.0" TextColor="#475569" FontSize="13" />
+                        <Label Text="Desarrollado en .NET MAUI + Firebase" TextColor="#64748B" FontSize="12" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{Binding ErrorDetalle}" TextColor="#B91C1C" IsVisible="{Binding TieneError}" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

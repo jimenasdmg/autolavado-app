@@ -1,0 +1,301 @@
+﻿rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // AUTH HELPERS
+    // =========================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        userDoc().data.rol == 'admin';
+    }
+
+    function isEmpleado() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        userDoc().data.rol == 'empleado';
+    }
+
+    function isCliente() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        userDoc().data.rol == 'cliente';
+    }
+
+    // =========================
+    // USUARIOS
+    // =========================
+
+    match /usuarios/{uid} {
+
+      allow create: if isSignedIn() &&
+        (request.auth.uid == uid || isAdmin());
+
+      allow read: if isSignedIn() &&
+        (request.auth.uid == uid || isAdmin());
+
+      allow update: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          request.auth.uid == uid &&
+
+          // NO permitir cambiar rol
+          request.resource.data.rol == resource.data.rol &&
+
+          // NO permitir cambiar uid
+          request.resource.data.uid == resource.data.uid
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // SERVICIOS
+    // =========================
+
+    match /servicios/{servicioId} {
+
+      // Clientes SOLO ven servicios activos y visibles
+      allow read: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.activo == true &&
+          resource.data.visible == true
+        );
+
+      allow write: if isAdmin();
+    }
+
+    // =========================
+    // VEHICULOS
+    // =========================
+
+    match /vehiculos/{vehiculoId} {
+
+      allow create: if isSignedIn() &&
+
+        (
+          request.resource.data.usuarioId == request.auth.uid ||
+          isAdmin()
+        );
+
+      allow read: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid
+        );
+
+      allow update: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid &&
+
+          // proteger ids
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.usuarioId == resource.data.usuarioId
+        );
+
+      allow delete: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid
+        );
+    }
+
+    // =========================
+    // CITAS
+    // =========================
+
+    match /citas/{citaId} {
+
+      // =====================
+      // CREATE
+      // =====================
+
+      allow create: if isSignedIn() &&
+
+        (
+          isAdmin() ||
+
+          (
+            isCliente() &&
+
+            request.resource.data.clienteId == request.auth.uid &&
+
+            // CAMPOS OBLIGATORIOS
+            request.resource.data.keys().hasAll([
+              'id',
+              'clienteId',
+              'servicioId',
+              'vehiculoId',
+              'fecha',
+              'hora',
+              'estado',
+              'modalidad',
+              'fechaCreacion'
+            ]) &&
+
+            request.resource.data.servicioId != '' &&
+            request.resource.data.vehiculoId != '' &&
+            request.resource.data.fecha != '' &&
+            request.resource.data.hora != '' &&
+            request.resource.data.modalidad != '' &&
+
+            request.resource.data.estado == 'pendiente' &&
+
+            request.resource.data.empleadoId == ''
+          )
+        );
+
+      // =====================
+      // READ
+      // =====================
+
+      allow read: if isAdmin() ||
+
+        (
+          isCliente() &&
+          resource.data.clienteId == request.auth.uid
+        ) ||
+
+        (
+          isEmpleado() &&
+
+          (
+            resource.data.estado == 'pendiente' ||
+
+            resource.data.empleadoId == request.auth.uid
+          )
+        );
+
+      // =====================
+      // UPDATE
+      // =====================
+
+      allow update: if isAdmin() ||
+
+        // CLIENTE
+        (
+          isCliente() &&
+
+          resource.data.clienteId == request.auth.uid &&
+
+          request.resource.data.clienteId == resource.data.clienteId &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.servicioId == resource.data.servicioId &&
+          request.resource.data.vehiculoId == resource.data.vehiculoId &&
+          request.resource.data.fechaCreacion == resource.data.fechaCreacion &&
+
+          // NO puede cambiar empleado
+          request.resource.data.empleadoId == resource.data.empleadoId
+        ) ||
+
+        // EMPLEADO
+        (
+          isEmpleado() &&
+
+          (
+            // tomar cita
+            (
+              resource.data.estado == 'pendiente' &&
+              request.resource.data.empleadoId == request.auth.uid &&
+              request.resource.data.estado == 'empleado_asignado'
+            )
+
+            ||
+
+            // cita ya asignada
+            (
+              resource.data.empleadoId == request.auth.uid
+            )
+          ) &&
+
+          // proteger datos críticos
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.clienteId == resource.data.clienteId &&
+          request.resource.data.servicioId == resource.data.servicioId &&
+          request.resource.data.vehiculoId == resource.data.vehiculoId &&
+          request.resource.data.fecha == resource.data.fecha &&
+          request.resource.data.hora == resource.data.hora &&
+          request.resource.data.precio == resource.data.precio &&
+          request.resource.data.fechaCreacion == resource.data.fechaCreacion
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // NOTIFICACIONES
+    // =========================
+
+    match /notificaciones/{notificacionId} {
+
+      allow create: if
+
+        isAdmin() ||
+
+        (
+          isSignedIn() &&
+          request.resource.data.usuarioId == request.auth.uid
+        );
+
+      allow read, update: if
+
+        isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // MENSAJES
+    // =========================
+
+    match /mensajes/{mensajeId} {
+
+      // SOLO el emisor crea
+      allow create: if
+
+        isSignedIn() &&
+        request.resource.data.emisorId == request.auth.uid;
+
+      // SOLO participantes leen
+      allow read: if
+
+        isSignedIn() &&
+
+        (
+          resource.data.emisorId == request.auth.uid ||
+          resource.data.receptorId == request.auth.uid
+        );
+
+      // SOLO receptor actualiza
+      allow update: if
+
+        isSignedIn() &&
+        resource.data.receptorId == request.auth.uid;
+
+      allow delete: if isAdmin();
+    }
+  }
+}

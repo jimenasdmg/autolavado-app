@@ -1,0 +1,154 @@
+﻿using AutoLavadoApp.Services;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.ViewModels;
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class MisCitasViewModel : BaseViewModel
+    {
+        private readonly ICitaRepository _citaRepository;
+        private readonly SessionService _sessionService;
+        private readonly NotificacionService _notificacionService;
+
+        public ObservableCollection<Cita> Citas { get; } = new();
+
+        public bool HasCitas => Citas.Count > 0;
+        public bool HasNoCitas => Citas.Count == 0;
+        public string MensajeVacio => "Aún no tienes citas registradas.";
+
+        private int _notificacionesNoLeidas;
+        public int NotificacionesNoLeidas
+        {
+            get => _notificacionesNoLeidas;
+            private set
+            {
+                if (SetProperty(ref _notificacionesNoLeidas, value))
+                {
+                    OnPropertyChanged(nameof(TieneNotificacionesNoLeidas));
+                    OnPropertyChanged(nameof(NotificacionesNoLeidasTexto));
+                }
+            }
+        }
+
+        public bool TieneNotificacionesNoLeidas => NotificacionesNoLeidas > 0;
+        public string NotificacionesNoLeidasTexto => NotificacionesNoLeidas > 9 ? "9+" : NotificacionesNoLeidas.ToString();
+
+        public Func<string, string, string, Task<bool>>? ConfirmarAsync { get; set; }
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+        public Func<string, Task>? NavegarDetalleAsync { get; set; }
+
+        public ICommand CargarCommand { get; }
+        public ICommand CancelarCommand { get; }
+        public ICommand VerDetalleCommand { get; }
+
+        public MisCitasViewModel(ICitaRepository citaRepository, SessionService sessionService, NotificacionService notificacionService)
+        {
+            _citaRepository = citaRepository;
+            _sessionService = sessionService;
+            _notificacionService = notificacionService;
+
+            Citas.CollectionChanged += (_, __) =>
+            {
+                OnPropertyChanged(nameof(HasCitas));
+                OnPropertyChanged(nameof(HasNoCitas));
+            };
+
+            CargarCommand = new Command(async () => await CargarAsync());
+            CancelarCommand = new Command<Cita>(async c => await CancelarAsync(c));
+            VerDetalleCommand = new Command<Cita>(async c => await VerDetalleAsync(c));
+        }
+
+        public async Task CargarAsync()
+        {
+            if (IsBusy) return;
+
+            try
+            {
+                IsBusy = true;
+                Citas.Clear();
+
+                var uid = _sessionService.ObtenerUid();
+                if (string.IsNullOrWhiteSpace(uid))
+                {
+                    await MostrarAlertaSeguraAsync("Sesión", "No hay sesión activa.");
+                    return;
+                }
+
+                var token = await _sessionService.ObtenerTokenAsync();
+                if (SessionService.TokenExpirado(token))
+                {
+                    await MostrarAlertaSeguraAsync("Sesión", "Tu sesión expiró. Inicia sesión nuevamente.");
+                    return;
+                }
+
+                var lista = await _citaRepository.ObtenerPorUsuarioAsync(uid, token);
+
+                // Alinea esta pantalla con "Ver mis citas": prioriza citas donde el cliente sea el usuario actual.
+                var listaCliente = lista
+                    .Where(c => string.Equals(c.ClienteId, uid, StringComparison.Ordinal))
+                    .ToList();
+
+                var listaFinal = listaCliente.Count > 0 ? listaCliente : lista.ToList();
+
+                foreach (var c in listaFinal.OrderBy(c => c.Fecha).ThenBy(c => c.Hora))
+                {
+                    Citas.Add(c);
+                }
+
+                OnPropertyChanged(nameof(HasCitas));
+                OnPropertyChanged(nameof(HasNoCitas));
+
+                NotificacionesNoLeidas = await _notificacionService.ObtenerNoLeidasCountAsync(uid, token);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public async Task CancelarAsync(Cita? cita)
+        {
+            if (cita is null) return;
+            if (cita.Estado is EstadosCita.Cancelada or EstadosCita.Finalizada) return;
+
+            var confirmar = ConfirmarAsync is not null
+                ? await ConfirmarAsync("Cancelar", "¿Deseas cancelar esta cita?", "Sí")
+                : false;
+            if (!confirmar) return;
+
+            var token = _sessionService.ObtenerToken();
+            var ok = await _citaRepository.CancelarAsync(cita.Id, token);
+            if (!ok)
+            {
+                await MostrarAlertaSeguraAsync("Error", "No se pudo cancelar la cita.");
+                return;
+            }
+
+            await CargarAsync();
+        }
+
+        public async Task VerDetalleAsync(Cita? cita)
+        {
+            if (cita is null || string.IsNullOrWhiteSpace(cita.Id) || NavegarDetalleAsync is null)
+            {
+                return;
+            }
+
+            await NavegarDetalleAsync(cita.Id);
+        }
+
+        private async Task MostrarAlertaSeguraAsync(string titulo, string mensaje)
+        {
+            if (MostrarAlertaAsync is not null)
+            {
+                await MostrarAlertaAsync(titulo, mensaje, "OK");
+            }
+        }
+    }
+}

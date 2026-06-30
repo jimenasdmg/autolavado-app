@@ -1,0 +1,138 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services
+{
+    public class CitaService : FirestoreBaseService
+    {
+        private const string Collection = "citas";
+
+        public CitaService(HttpClient httpClient) : base(httpClient)
+        {
+        }
+
+        public async Task<bool> CrearCitaAsync(Cita cita)
+        {
+            if (string.IsNullOrWhiteSpace(cita.Id))
+            {
+                cita.Id = Guid.NewGuid().ToString("N");
+            }
+
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["id"] = new { stringValue = cita.Id },
+                    ["usuarioId"] = new { stringValue = cita.UsuarioId ?? string.Empty },
+                    ["vehiculoId"] = new { stringValue = cita.VehiculoId ?? string.Empty },
+                    ["servicioId"] = new { stringValue = cita.ServicioId ?? string.Empty },
+                    ["empleadoId"] = new { stringValue = cita.EmpleadoId ?? string.Empty },
+                    ["fecha"] = new { stringValue = cita.Fecha.ToString("yyyy-MM-dd") },
+                    ["hora"] = new { stringValue = cita.Hora ?? string.Empty },
+                    ["estado"] = new { stringValue = cita.Estado ?? EstadosCita.Pendiente },
+                    ["observaciones"] = new { stringValue = cita.Observaciones ?? string.Empty }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, cita.Id);
+        }
+
+        public async Task<List<Cita>> ObtenerCitasPorUsuarioAsync(string usuarioId)
+        {
+            var response = await _httpClient.GetAsync(BuildDocumentUrl(Collection));
+            if (!response.IsSuccessStatusCode) return new List<Cita>();
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+
+            var result = new List<Cita>();
+            if (!doc.RootElement.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var cita = ParseCita(d);
+                if (cita is null) continue;
+                if (cita.UsuarioId == usuarioId) result.Add(cita);
+            }
+
+            return result.OrderByDescending(x => x.Fecha).ToList();
+        }
+
+        public async Task<Cita?> ObtenerPorIdAsync(string citaId)
+        {
+            var doc = await ObtenerDocumentoAsync(Collection, citaId);
+            if (doc is null) return null;
+            return ParseCita(doc.Value);
+        }
+
+        public async Task<bool> CancelarCitaAsync(string citaId)
+        {
+            return await CambiarEstadoAsync(citaId, EstadosCita.Cancelada);
+        }
+
+        public async Task<bool> ReagendarCitaAsync(string citaId, DateTime nuevaFecha, string nuevaHora)
+        {
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["fecha"] = new { stringValue = nuevaFecha.ToString("yyyy-MM-dd") },
+                    ["hora"] = new { stringValue = nuevaHora }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, citaId);
+        }
+
+        private async Task<bool> CambiarEstadoAsync(string citaId, string estado)
+        {
+            var body = new
+            {
+                fields = new Dictionary<string, object>
+                {
+                    ["estado"] = new { stringValue = estado }
+                }
+            };
+
+            return await CrearDocumentoAsync(Collection, body, citaId);
+        }
+
+        private static Cita? ParseCita(JsonElement doc)
+        {
+            if (!doc.TryGetProperty("fields", out var f)) return null;
+
+            var name = doc.TryGetProperty("name", out var n) ? n.GetString() : null;
+            var id = ReadString(f, "id");
+            if (string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name)) id = name.Split('/').Last();
+
+            var fechaText = ReadString(f, "fecha");
+            DateTime.TryParse(fechaText, out var fecha);
+
+            return new Cita
+            {
+                Id = id ?? string.Empty,
+                UsuarioId = ReadString(f, "usuarioId") ?? string.Empty,
+                VehiculoId = ReadString(f, "vehiculoId") ?? string.Empty,
+                ServicioId = ReadString(f, "servicioId") ?? string.Empty,
+                EmpleadoId = ReadString(f, "empleadoId") ?? string.Empty,
+                Fecha = fecha == default ? DateTime.Today : fecha,
+                Hora = ReadString(f, "hora") ?? string.Empty,
+                Estado = ReadString(f, "estado") ?? EstadosCita.Pendiente,
+                Observaciones = ReadString(f, "observaciones") ?? string.Empty
+            };
+        }
+
+        private static string? ReadString(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+            return null;
+        }
+    }
+}

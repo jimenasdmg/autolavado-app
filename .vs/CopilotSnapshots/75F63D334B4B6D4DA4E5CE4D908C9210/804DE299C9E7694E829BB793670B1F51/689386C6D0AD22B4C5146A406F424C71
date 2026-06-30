@@ -1,0 +1,14 @@
+﻿namespace AutoLavadoApp.Views.Admin;
+
+public class AdminTabbedPage : TabbedPage
+{
+    public AdminTabbedPage()
+    {
+        Title = "Panel administrador";
+
+        Children.Add(new NavigationPage(new AdminHomePage()) { Title = "Inicio" });
+        Children.Add(new NavigationPage(new AdminEmpleadosPage()) { Title = "Empleados" });
+        Children.Add(new NavigationPage(new AdminServiciosPage()) { Title = "Servicios" });
+        Children.Add(new NavigationPage(new AdminCuentaPage()) { Title = "Cuenta" });
+    }
+}

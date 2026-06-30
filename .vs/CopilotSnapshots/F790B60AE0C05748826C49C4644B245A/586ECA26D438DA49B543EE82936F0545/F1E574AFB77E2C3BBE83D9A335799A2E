@@ -1,0 +1,14 @@
+﻿namespace AutoLavadoApp;
+
+public partial class MisCitasPage : ContentPage
+{
+    public MisCitasPage()
+    {
+        InitializeComponent();
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+}

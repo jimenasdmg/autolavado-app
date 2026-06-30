@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AdminEmpleadoHistorialPage"
+             Shell.NavBarIsVisible="False"
+             Padding="0,18,0,0"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="24,18" Spacing="12">
+                <Label x:Name="TituloLabel" Text="Historial" FontSize="24" FontAttributes="Bold" TextColor="#0B1F4D" />
+
+                <CollectionView x:Name="HistorialCollection" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border BackgroundColor="White" Stroke="#E7ECF4" StrokeThickness="1" StrokeShape="RoundRectangle 12" Padding="12" Margin="0,0,0,12">
+                                <VerticalStackLayout>
+                                    <Label Text="{Binding Servicio}" FontSize="16" FontAttributes="Bold" TextColor="#0B1F4D" />
+                                    <Label Text="{Binding Fecha, StringFormat='{0:dd/MM/yyyy}'}" FontSize="13" TextColor="#334155" />
+                                    <Label Text="{Binding Hora}" FontSize="13" TextColor="#334155" />
+                                    <Label Text="{Binding Vehiculo}" FontSize="13" TextColor="#334155" />
+                                    <Label Text="{Binding Estado}" FontSize="13" TextColor="#334155" />
+                                    <Label Text="{Binding Comentarios}" FontSize="13" TextColor="#334155" />
+                                    <Label Text="Pagado: {Binding Pagado}" FontSize="13" TextColor="#334155" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

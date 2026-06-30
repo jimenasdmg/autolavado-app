@@ -1,0 +1,241 @@
+﻿rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // AUTH HELPERS
+    // =========================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        userDoc().data.rol == 'admin';
+    }
+
+    function isEmpleado() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        userDoc().data.rol == 'empleado';
+    }
+
+    function isCliente() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        userDoc().data.rol == 'cliente';
+    }
+
+    // =========================
+    // USUARIOS
+    // =========================
+
+    match /usuarios/{uid} {
+
+      allow create: if isSignedIn() &&
+        (request.auth.uid == uid || isAdmin());
+
+      allow read: if isSignedIn() &&
+        (request.auth.uid == uid || isAdmin());
+
+      allow update: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          request.auth.uid == uid &&
+          request.resource.data.rol == resource.data.rol &&
+          request.resource.data.uid == resource.data.uid
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // SERVICIOS
+    // =========================
+
+    match /servicios/{servicioId} {
+
+      allow read: if isAdmin() ||
+
+        (
+          isSignedIn() &&
+          resource.data.activo == true &&
+          resource.data.visible == true
+        );
+
+      allow write: if isAdmin();
+    }
+
+    // =========================
+    // VEHICULOS
+    // =========================
+
+    match /vehiculos/{vehiculoId} {
+
+      allow create: if isSignedIn() &&
+        (
+          request.resource.data.usuarioId == request.auth.uid ||
+          isAdmin()
+        );
+
+      allow read: if isAdmin() ||
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid
+        );
+
+      allow update: if isAdmin() ||
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.usuarioId == resource.data.usuarioId
+        );
+
+      allow delete: if isAdmin() ||
+        (
+          isSignedIn() &&
+          resource.data.usuarioId == request.auth.uid
+        );
+    }
+
+    // =========================
+    // CITAS
+    // =========================
+
+    match /citas/{citaId} {
+
+      allow create: if isSignedIn() &&
+        (
+          isAdmin() ||
+
+          (
+            isCliente() &&
+            request.resource.data.clienteId == request.auth.uid &&
+
+            request.resource.data.keys().hasAll([
+              'id',
+              'clienteId',
+              'servicioId',
+              'vehiculoId',
+              'fecha',
+              'hora',
+              'estado',
+              'modalidad',
+              'fechaCreacion'
+            ]) &&
+
+            request.resource.data.servicioId != '' &&
+            request.resource.data.vehiculoId != '' &&
+            request.resource.data.fecha != '' &&
+            request.resource.data.hora != '' &&
+            request.resource.data.modalidad != '' &&
+
+            request.resource.data.estado == 'pendiente' &&
+            request.resource.data.empleadoId == ''
+          )
+        );
+
+      allow read: if isAdmin() ||
+
+        (
+          isCliente() &&
+          resource.data.clienteId == request.auth.uid
+        ) ||
+
+        (
+          isEmpleado() &&
+          (
+            resource.data.estado == 'pendiente' ||
+            resource.data.empleadoId == request.auth.uid
+          )
+        );
+
+      allow update: if isAdmin() ||
+
+        (
+          isCliente() &&
+          resource.data.clienteId == request.auth.uid &&
+
+          request.resource.data.clienteId == resource.data.clienteId &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.servicioId == resource.data.servicioId &&
+          request.resource.data.vehiculoId == resource.data.vehiculoId &&
+          request.resource.data.fechaCreacion == resource.data.fechaCreacion &&
+          request.resource.data.empleadoId == resource.data.empleadoId
+        ) ||
+
+        (
+          isEmpleado() &&
+
+          (
+            (
+              resource.data.estado == 'pendiente' &&
+              request.resource.data.empleadoId == request.auth.uid &&
+              request.resource.data.estado == 'empleado_asignado'
+            )
+
+            ||
+
+            (
+              resource.data.empleadoId == request.auth.uid
+            )
+          ) &&
+
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.clienteId == resource.data.clienteId &&
+          request.resource.data.servicioId == resource.data.servicioId &&
+          request.resource.data.vehiculoId == resource.data.vehiculoId &&
+          request.resource.data.fecha == resource.data.fecha &&
+          request.resource.data.hora == resource.data.hora &&
+          request.resource.data.precio == resource.data.precio &&
+          request.resource.data.fechaCreacion == resource.data.fechaCreacion
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // NOTIFICACIONES
+    // =========================
+
+    match /notificaciones/{notificacionId} {
+
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.usuarioId == request.auth.uid);
+      allow read, update: if isAdmin() || (isSignedIn() && resource.data.usuarioId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // MENSAJES
+    // =========================
+
+    match /mensajes/{mensajeId} {
+
+      allow create: if request.auth != null &&
+        request.resource.data.remitenteId == request.auth.uid;
+
+      allow read: if request.auth != null &&
+        (
+          resource.data.remitenteId == request.auth.uid ||
+          resource.data.destinatarioId == request.auth.uid
+        );
+
+      allow update: if request.auth != null &&
+        (
+          resource.data.destinatarioId == request.auth.uid ||
+          resource.data.remitenteId == request.auth.uid
+        );
+
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,133 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services
+{
+    public class CitaService : FirestoreBaseService
+    {
+        private const string Coleccion = "citas";
+
+        public CitaService(HttpClient httpClient)
+            : base(httpClient, "autolavadoapp-58dc3")
+        {
+        }
+
+        public async Task<bool> CrearCitaAsync(Cita cita)
+        {
+            if (cita is null) return false;
+            if (string.IsNullOrWhiteSpace(cita.Id)) cita.Id = Guid.NewGuid().ToString("N");
+            if (string.IsNullOrWhiteSpace(cita.Estado)) cita.Estado = EstadosCita.Pendiente;
+
+            return await CrearDocumentoAsync($"{Coleccion}/{cita.Id}", cita);
+        }
+
+        public async Task<List<Cita>> ObtenerCitasPorUsuarioAsync(string usuarioId)
+        {
+            var url = BuildDocumentUrl(Coleccion);
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return new List<Cita>();
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+
+            var result = new List<Cita>();
+            if (!doc.RootElement.TryGetProperty("documents", out var docs) || docs.ValueKind != JsonValueKind.Array)
+                return result;
+
+            foreach (var d in docs.EnumerateArray())
+            {
+                var c = ParseCita(d);
+                if (c is null) continue;
+                if (c.UsuarioId == usuarioId) result.Add(c);
+            }
+
+            return result.OrderByDescending(c => c.Fecha).ToList();
+        }
+
+        public async Task<bool> CancelarCitaAsync(string citaId)
+        {
+            var cita = await ObtenerPorIdAsync(citaId);
+            if (cita is null) return false;
+
+            cita.Estado = EstadosCita.Cancelada;
+            return await CrearDocumentoAsync($"{Coleccion}/{cita.Id}", cita);
+        }
+
+        public async Task<bool> ReagendarCitaAsync(string citaId, DateTime nuevaFecha, string nuevaHora)
+        {
+            var cita = await ObtenerPorIdAsync(citaId);
+            if (cita is null) return false;
+
+            cita.Fecha = nuevaFecha;
+            cita.Hora = nuevaHora;
+            cita.Estado = EstadosCita.Pendiente;
+
+            return await CrearDocumentoAsync($"{Coleccion}/{cita.Id}", cita);
+        }
+
+        public async Task<Cita?> ObtenerPorIdAsync(string citaId)
+        {
+            var raw = await ObtenerDocumentoAsync($"{Coleccion}/{citaId}");
+            return raw is null ? null : ParseCita(raw.Value);
+        }
+
+        private static Cita? ParseCita(JsonElement d)
+        {
+            try
+            {
+                var fechaTxt = Read(d, "Fecha", "fecha");
+                var fecha = DateTime.TryParse(fechaTxt, out var f) ? f : DateTime.Now;
+
+                var c = new Cita
+                {
+                    Id = Read(d, "Id", "id"),
+                    UsuarioId = Read(d, "UsuarioId", "usuarioId", "ClienteId", "clienteId"),
+                    VehiculoId = Read(d, "VehiculoId", "vehiculoId"),
+                    ServicioId = Read(d, "ServicioId", "servicioId"),
+                    EmpleadoId = Read(d, "EmpleadoId", "empleadoId"),
+                    Fecha = fecha,
+                    Hora = Read(d, "Hora", "hora"),
+                    Estado = Read(d, "Estado", "estado"),
+                    Observaciones = Read(d, "Observaciones", "observaciones")
+                };
+
+                if (string.IsNullOrWhiteSpace(c.Id) && d.TryGetProperty("name", out var nameProp))
+                {
+                    var full = nameProp.GetString() ?? string.Empty;
+                    c.Id = full.Split('/').LastOrDefault() ?? string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(c.Estado)) c.Estado = EstadosCita.Pendiente;
+                return c;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string Read(JsonElement doc, params string[] keys)
+        {
+            foreach (var key in keys)
+            {
+                if (doc.TryGetProperty(key, out var plain)) return plain.ToString();
+
+                if (doc.TryGetProperty("fields", out var fields) && fields.ValueKind == JsonValueKind.Object && fields.TryGetProperty(key, out var f))
+                {
+                    if (f.TryGetProperty("stringValue", out var s)) return s.GetString() ?? string.Empty;
+                    if (f.TryGetProperty("integerValue", out var i)) return i.ToString();
+                    if (f.TryGetProperty("doubleValue", out var d)) return d.ToString();
+                    if (f.TryGetProperty("timestampValue", out var t)) return t.GetString() ?? string.Empty;
+                }
+            }
+
+            return string.Empty;
+        }
+    }
+}

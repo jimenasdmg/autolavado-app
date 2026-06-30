@@ -1,0 +1,47 @@
+﻿using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services
+{
+    public class SessionService
+    {
+        private const string UidKey = "session_uid";
+        private const string EmailKey = "session_email";
+        private const string TokenKey = "session_token";
+
+        public async Task GuardarSesionAsync(string uid, string email, string token)
+        {
+            Preferences.Set(UidKey, uid ?? string.Empty);
+            Preferences.Set(EmailKey, email ?? string.Empty);
+            await SecureStorage.SetAsync(TokenKey, token ?? string.Empty);
+        }
+
+        public async Task<string> ObtenerTokenAsync()
+        {
+            return await SecureStorage.GetAsync(TokenKey) ?? string.Empty;
+        }
+
+        public string ObtenerUid()
+        {
+            return Preferences.Get(UidKey, string.Empty);
+        }
+
+        public string ObtenerEmail()
+        {
+            return Preferences.Get(EmailKey, string.Empty);
+        }
+
+        public async Task<bool> TieneSesionActivaAsync()
+        {
+            var uid = ObtenerUid();
+            var token = await ObtenerTokenAsync();
+            return !string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(token);
+        }
+
+        public void CerrarSesion()
+        {
+            Preferences.Remove(UidKey);
+            Preferences.Remove(EmailKey);
+            SecureStorage.Remove(TokenKey);
+        }
+    }
+}

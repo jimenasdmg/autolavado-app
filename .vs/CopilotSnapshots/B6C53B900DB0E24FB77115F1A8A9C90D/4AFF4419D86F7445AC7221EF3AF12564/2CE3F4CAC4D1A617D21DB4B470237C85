@@ -1,0 +1,356 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.RegisterPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F2F4F7">
+
+    <ContentPage.Resources>
+        <Style x:Key="RegisterChipBaseStyle" TargetType="Button">
+            <Setter Property="HeightRequest" Value="44" />
+            <Setter Property="CornerRadius" Value="22" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="Padding" Value="18,0" />
+            <Setter Property="BorderWidth" Value="1" />
+            <Setter Property="BorderColor" Value="#D8DEEA" />
+            <Setter Property="BackgroundColor" Value="White" />
+            <Setter Property="TextColor" Value="#64748B" />
+        </Style>
+
+        <Style x:Key="RegisterChipSelectedStyle" TargetType="Button" BasedOn="{StaticResource RegisterChipBaseStyle}">
+            <Setter Property="BackgroundColor" Value="#0D1B3D" />
+            <Setter Property="TextColor" Value="White" />
+            <Setter Property="BorderColor" Value="#0D1B3D" />
+            <Setter Property="Shadow">
+                <Setter.Value>
+                    <Shadow Brush="#260D1B3D" Offset="0,4" Radius="10" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ContentPage.Resources>
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="24,30,24,24" Spacing="12">
+
+            <Grid ColumnDefinitions="Auto,*">
+                <Button Text="←"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="White"
+                        TextColor="#0D1B3D"
+                        IsEnabled="{Binding CanInteract}"
+                        Clicked="OnVolverClicked" />
+            </Grid>
+
+            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                <Label Text="&#xF1B9;"
+                       FontFamily="FontAwesomeSolid"
+                       FontSize="44"
+                       HorizontalTextAlignment="Center"
+                       TextColor="#1E88E5" />
+                <Label Text="BRIZZO"
+                       FontSize="38"
+                       FontAttributes="Bold"
+                       TextColor="#0D1B3D"
+                       CharacterSpacing="3"
+                       HorizontalTextAlignment="Center" />
+                <Label Text="AUTOLAVADO"
+                       FontSize="12"
+                       FontAttributes="Bold"
+                       TextColor="#1E88E5"
+                       CharacterSpacing="4"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="2">
+                <Label Text="Crear cuenta"
+                       FontSize="32"
+                       FontAttributes="Bold"
+                       TextColor="#0D1B3D" />
+                <Label Text="Únete a BRIZZO y disfruta"
+                       FontSize="15"
+                       TextColor="#616A82" />
+                <Label Text="de la mejor experiencia"
+                       FontSize="15"
+                       TextColor="#616A82" />
+            </VerticalStackLayout>
+
+            <Label Text="{Binding ErrorMessage}"
+                   TextColor="#D92D20"
+                   FontSize="14"
+                   IsVisible="{Binding HasError}" />
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="NombreEntry"
+                           Grid.Column="1"
+                           Placeholder="Nombre"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding Nombre}" />
+                </Grid>
+            </Border>
+
+            <Label Text="{Binding NombreError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-8,2,0"
+                   IsVisible="{Binding HasNombreError}" />
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry Grid.Column="1"
+                           Placeholder="Apellido paterno"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding ApellidoPaterno}" />
+                </Grid>
+            </Border>
+
+            <Label Text="{Binding ApellidoPaternoError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-8,2,0"
+                   IsVisible="{Binding HasApellidoPaternoError}" />
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry Grid.Column="1"
+                           Placeholder="Apellido materno (opcional)"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="15"
+                           MinimumWidthRequest="240"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding ApellidoMaterno}" />
+                </Grid>
+            </Border>
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="&#xF0E0;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="EmailEntry"
+                           Grid.Column="1"
+                           Placeholder="Correo electrónico"
+                           Keyboard="Email"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding Email}" />
+                </Grid>
+            </Border>
+
+            <Label Text="{Binding EmailError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-8,2,0"
+                   IsVisible="{Binding HasEmailError}" />
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Label Text="&#xF023;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="PasswordEntry"
+                           Grid.Column="1"
+                           Placeholder="Contraseña"
+                           IsPassword="{Binding IsPasswordHidden}"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding Password}" />
+                    <Button Grid.Column="2"
+                            Text="{Binding PasswordEyeIcon}"
+                            FontFamily="FontAwesomeSolid"
+                            BackgroundColor="Transparent"
+                            TextColor="#7B849B"
+                            Padding="6,0"
+                            FontSize="16"
+                            IsEnabled="{Binding CanInteract}"
+                            Command="{Binding TogglePasswordVisibilityCommand}" />
+                </Grid>
+            </Border>
+
+            <Label Text="{Binding PasswordError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-8,2,0"
+                   IsVisible="{Binding HasPasswordError}" />
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="14,6">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Label Text="&#xF023;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry x:Name="ConfirmPasswordEntry"
+                           Grid.Column="1"
+                           Placeholder="Confirmar contraseña"
+                           IsPassword="{Binding IsConfirmPasswordHidden}"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding ConfirmPassword}" />
+                    <Button Grid.Column="2"
+                            Text="{Binding ConfirmPasswordEyeIcon}"
+                            FontFamily="FontAwesomeSolid"
+                            BackgroundColor="Transparent"
+                            TextColor="#7B849B"
+                            Padding="6,0"
+                            FontSize="16"
+                            IsEnabled="{Binding CanInteract}"
+                            Command="{Binding ToggleConfirmPasswordVisibilityCommand}" />
+                </Grid>
+            </Border>
+
+            <Label Text="{Binding ConfirmPasswordError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-8,2,0"
+                   IsVisible="{Binding HasConfirmPasswordError}" />
+
+            <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 14" Padding="14,12">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Tipo de cuenta"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="#0D1B3D" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Text="Cliente"
+                                x:Name="ClienteChipButton"
+                                Command="{Binding SeleccionarClienteCommand}"
+                                Clicked="OnTipoCuentaChipClicked"
+                                IsEnabled="{Binding CanInteract}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsClienteSelected}" Value="True">
+                                    <Setter Property="Style" Value="{StaticResource RegisterChipSelectedStyle}" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsClienteSelected}" Value="False">
+                                    <Setter Property="Style" Value="{StaticResource RegisterChipBaseStyle}" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+
+                        <Button Grid.Column="1"
+                                x:Name="AdministradorChipButton"
+                                Text="Administrador"
+                                Command="{Binding SeleccionarAdministradorCommand}"
+                                Clicked="OnTipoCuentaChipClicked"
+                                IsEnabled="{Binding CanInteract}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsAdministradorSelected}" Value="True">
+                                    <Setter Property="Style" Value="{StaticResource RegisterChipSelectedStyle}" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsAdministradorSelected}" Value="False">
+                                    <Setter Property="Style" Value="{StaticResource RegisterChipBaseStyle}" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="#D8DEEA"
+                    StrokeThickness="1"
+                    BackgroundColor="White"
+                    StrokeShape="RoundRectangle 14"
+                    Padding="14,6"
+                    IsVisible="{Binding EsAdministrador}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="&#xF023;" FontFamily="FontAwesomeSolid" FontSize="14" VerticalTextAlignment="Center" TextColor="#7B849B" />
+                    <Entry Grid.Column="1"
+                           Placeholder="Código de administrador"
+                           TextColor="#0D1B3D"
+                           PlaceholderColor="#9AA2B8"
+                           FontSize="16"
+                           IsEnabled="{Binding CanInteract}"
+                           Text="{Binding CodigoAdministrador}" />
+                </Grid>
+            </Border>
+
+            <Label Text="{Binding CodigoAdministradorError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-8,2,0"
+                   IsVisible="{Binding HasCodigoAdministradorError}" />
+
+            <HorizontalStackLayout Spacing="8">
+                <CheckBox x:Name="TerminosCheckBox"
+                          Color="#1E88E5"
+                          IsEnabled="{Binding CanInteract}"
+                          IsChecked="{Binding AceptaTerminos}" />
+                <Label VerticalTextAlignment="Center"
+                       FontSize="14"
+                       TextColor="#56617B"
+                       LineBreakMode="WordWrap">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Acepto los" />
+                            <Span Text=" Términos y condiciones" TextColor="#1E88E5" />
+                            <Span Text=" y la " />
+                            <Span Text="Política de privacidad" TextColor="#1E88E5" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </HorizontalStackLayout>
+
+            <Label Text="{Binding TerminosError}"
+                   TextColor="#D92D20"
+                   FontSize="13"
+                   Margin="2,-10,2,0"
+                   IsVisible="{Binding HasTerminosError}" />
+
+            <Button Text="Crear cuenta"
+                    HeightRequest="52"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    TextColor="White"
+                    BackgroundColor="#0D1B3D"
+                    CornerRadius="12"
+                    IsEnabled="{Binding CanInteract}"
+                    Clicked="OnCrearCuentaClicked" />
+
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="6">
+                <Label Text="¿Ya tienes cuenta?"
+                       FontSize="15"
+                       TextColor="#707B96" />
+                <Button Text="Iniciar sesión"
+                        Padding="0"
+                        FontSize="15"
+                        TextColor="#1E88E5"
+                        BackgroundColor="Transparent"
+                        IsEnabled="{Binding CanInteract}"
+                        Clicked="OnIrLoginClicked" />
+            </HorizontalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid IsVisible="{Binding IsBusy}"
+              BackgroundColor="#80F2F4F7"
+              InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                   Color="#1E88E5"
+                                   WidthRequest="42"
+                                   HeightRequest="42" />
+                <Label Text="Creando tu cuenta..."
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#0D1B3D" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

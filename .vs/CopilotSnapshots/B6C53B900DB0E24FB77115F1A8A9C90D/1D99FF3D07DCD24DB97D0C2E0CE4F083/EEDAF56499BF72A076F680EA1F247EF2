@@ -1,0 +1,281 @@
+﻿using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+using System;
+using System.ComponentModel;
+using System.Net.Mail;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class CrearEmpleadoViewModel : INotifyPropertyChanged
+    {
+        private readonly AuthService _authService;
+        private readonly EmpleadoService _empleadoService;
+        private readonly SessionService _sessionService;
+
+        private string _nombre = string.Empty;
+        private string _apellidoPaterno = string.Empty;
+        private string _apellidoMaterno = string.Empty;
+        private string _correo = string.Empty;
+        private string _password = string.Empty;
+        private string _confirmPassword = string.Empty;
+        private bool _isPasswordHidden = true;
+        private bool _isConfirmPasswordHidden = true;
+        private string _errorMessage = string.Empty;
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public CrearEmpleadoViewModel(AuthService authService, EmpleadoService empleadoService, SessionService sessionService)
+        {
+            _authService = authService;
+            _empleadoService = empleadoService;
+            _sessionService = sessionService;
+            CrearEmpleadoCommand = new Command(async () => await CrearEmpleadoAsync(), () => !IsBusy);
+            TogglePasswordVisibilityCommand = new Command(() => IsPasswordHidden = !IsPasswordHidden);
+            ToggleConfirmPasswordVisibilityCommand = new Command(() => IsConfirmPasswordHidden = !IsConfirmPasswordHidden);
+        }
+
+        public string Nombre
+        {
+            get => _nombre;
+            set => SetProperty(ref _nombre, value);
+        }
+
+        public string ApellidoPaterno
+        {
+            get => _apellidoPaterno;
+            set => SetProperty(ref _apellidoPaterno, value);
+        }
+
+        public string ApellidoMaterno
+        {
+            get => _apellidoMaterno;
+            set => SetProperty(ref _apellidoMaterno, value);
+        }
+
+        public string Correo
+        {
+            get => _correo;
+            set => SetProperty(ref _correo, value);
+        }
+
+        public string Password
+        {
+            get => _password;
+            set => SetProperty(ref _password, value);
+        }
+
+        public string ConfirmPassword
+        {
+            get => _confirmPassword;
+            set => SetProperty(ref _confirmPassword, value);
+        }
+
+        public bool IsPasswordHidden
+        {
+            get => _isPasswordHidden;
+            set
+            {
+                if (SetProperty(ref _isPasswordHidden, value))
+                {
+                    OnPropertyChanged(nameof(PasswordEyeIcon));
+                }
+            }
+        }
+
+        public bool IsConfirmPasswordHidden
+        {
+            get => _isConfirmPasswordHidden;
+            set
+            {
+                if (SetProperty(ref _isConfirmPasswordHidden, value))
+                {
+                    OnPropertyChanged(nameof(ConfirmPasswordEyeIcon));
+                }
+            }
+        }
+
+        public string PasswordEyeIcon => IsPasswordHidden ? "\uf06e" : "\uf070";
+
+        public string ConfirmPasswordEyeIcon => IsConfirmPasswordHidden ? "\uf06e" : "\uf070";
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            private set
+            {
+                if (SetProperty(ref _errorMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    ((Command)CrearEmpleadoCommand).ChangeCanExecute();
+                    OnPropertyChanged(nameof(CanInteract));
+                }
+            }
+        }
+
+        public bool CanInteract => !IsBusy;
+
+        public ICommand CrearEmpleadoCommand { get; }
+        public ICommand TogglePasswordVisibilityCommand { get; }
+        public ICommand ToggleConfirmPasswordVisibilityCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+        public Func<Task>? NavegarAtrasAsync { get; set; }
+
+        public async Task<bool> CrearEmpleadoAsync()
+        {
+            if (IsBusy)
+            {
+                return false;
+            }
+
+            ErrorMessage = string.Empty;
+
+            if (!Validar())
+            {
+                return false;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var rolActual = _sessionService.ObtenerRol();
+                if (!string.Equals(rolActual, "admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    ErrorMessage = "Solo un administrador puede crear empleados.";
+                    return false;
+                }
+
+                var tokenSesion = await _sessionService.ObtenerTokenAsync();
+                if (AutoLavadoApp.Services.SessionService.TokenExpirado(tokenSesion))
+                {
+                    ErrorMessage = "La sesión expiró. Inicia sesión nuevamente.";
+                    return false;
+                }
+
+                var authResult = await _authService.RegisterAsync(Correo.Trim(), Password);
+                if (!authResult.IsSuccess || string.IsNullOrWhiteSpace(authResult.UserId))
+                {
+                    ErrorMessage = authResult.ErrorMessage;
+                    return false;
+                }
+
+                await _empleadoService.CrearEmpleadoAsync(
+                    authResult.UserId,
+                    Nombre.Trim(),
+                    ApellidoPaterno.Trim(),
+                    ApellidoMaterno.Trim(),
+                    Correo.Trim(),
+                    "empleado",
+                    tokenSesion);
+
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Empleado creado", "La cuenta del empleado se creó correctamente.", "Continuar");
+                }
+
+                if (NavegarAtrasAsync != null)
+                {
+                    await NavegarAtrasAsync();
+                }
+
+                return true;
+            }
+            catch (FirebaseServiceException ex)
+            {
+                ErrorMessage = ex.Message;
+                return false;
+            }
+            catch
+            {
+                ErrorMessage = "No fue posible crear el empleado. Intenta nuevamente.";
+                return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private bool Validar()
+        {
+            if (string.IsNullOrWhiteSpace(Nombre) ||
+                string.IsNullOrWhiteSpace(ApellidoPaterno) ||
+                string.IsNullOrWhiteSpace(ApellidoMaterno) ||
+                string.IsNullOrWhiteSpace(Correo) ||
+                string.IsNullOrWhiteSpace(Password) ||
+                string.IsNullOrWhiteSpace(ConfirmPassword))
+            {
+                ErrorMessage = "Todos los campos son obligatorios.";
+                return false;
+            }
+
+            if (!EsCorreoValido(Correo))
+            {
+                ErrorMessage = "Ingresa un correo electrónico válido.";
+                return false;
+            }
+
+            if (Password.Length < 6)
+            {
+                ErrorMessage = "La contraseña debe tener al menos 6 caracteres.";
+                return false;
+            }
+
+            if (!string.Equals(Password, ConfirmPassword, StringComparison.Ordinal))
+            {
+                ErrorMessage = "Las contraseñas no coinciden.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool EsCorreoValido(string correo)
+        {
+            try
+            {
+                var direccion = new MailAddress(correo);
+                return string.Equals(direccion.Address, correo.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

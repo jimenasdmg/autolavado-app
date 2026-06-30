@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.MisCitasPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <VerticalStackLayout Padding="20,24" Spacing="14">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <Button Text="←"
+                    WidthRequest="38"
+                    HeightRequest="38"
+                    FontSize="20"
+                    CornerRadius="19"
+                    BackgroundColor="White"
+                    TextColor="#0B1F4D"
+                    Clicked="OnVolverClicked" />
+            <Label Grid.Column="1"
+                   Text="Mis citas"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="#0B1F4D"
+                   VerticalTextAlignment="Center" />
+        </Grid>
+
+        <Border BackgroundColor="White"
+                Stroke="#E7ECF4"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 16"
+                Padding="16">
+            <Border.Shadow>
+                <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+            </Border.Shadow>
+            <Label Text="Tu cita fue guardada correctamente."
+                   FontSize="15"
+                   TextColor="#334155" />
+        </Border>
+    </VerticalStackLayout>
+
+</ContentPage>

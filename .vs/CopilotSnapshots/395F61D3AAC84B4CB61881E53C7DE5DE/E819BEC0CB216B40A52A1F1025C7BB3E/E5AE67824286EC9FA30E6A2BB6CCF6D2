@@ -1,0 +1,248 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.HomePage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="*,Auto">
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20,22,20,18" Spacing="18">
+
+                <Border BackgroundColor="#0B1F4D"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 20"
+                        Padding="18,16">
+                    <Border.Shadow>
+                        <Shadow Brush="#22000000" Offset="0,6" Radius="14" />
+                    </Border.Shadow>
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="10">
+                        <VerticalStackLayout Spacing="0">
+                            <Label Text="BRIZZO"
+                                   FontSize="24"
+                                   CharacterSpacing="2"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                            <Label Text="AUTOLAVADO"
+                                   FontSize="11"
+                                   CharacterSpacing="4"
+                                   FontAttributes="Bold"
+                                   TextColor="#93C5FD" />
+                        </VerticalStackLayout>
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#1E3A8A"
+                                StrokeThickness="0"
+                                WidthRequest="40"
+                                HeightRequest="40"
+                                StrokeShape="RoundRectangle 20"
+                                HorizontalOptions="End"
+                                VerticalOptions="Start">
+                            <Label Text="&#xF0F3;"
+                                   FontFamily="FontAwesomeSolid"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalTextAlignment="Center"
+                                   FontSize="18" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="2">
+                            <Label Text="{Binding MensajeSaludo}"
+                                   FontSize="22"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                            <Label Text="Bienvenido cliente"
+                                   FontSize="14"
+                                   TextColor="#DBEAFE" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="0">
+                    <Border.Shadow>
+                        <Shadow Brush="#1A000000" Offset="0,4" Radius="12" />
+                    </Border.Shadow>
+                    <Grid RowDefinitions="150,Auto" RowSpacing="0">
+                        <Image Grid.Row="0"
+                               Source="https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&amp;fit=crop&amp;w=1200&amp;q=60"
+                               Aspect="AspectFill" />
+
+                        <VerticalStackLayout Grid.Row="1" Padding="16,14,16,16" Spacing="6">
+                            <Label Text="Reserva tu cita"
+                                   FontSize="21"
+                                   FontAttributes="Bold"
+                                   TextColor="#0B1F4D" />
+                            <Label Text="Elige el día y la hora que mejor se adapten a ti"
+                                   FontSize="14"
+                                   TextColor="#64748B" />
+                            <Button Text="Agendar ahora"
+                                    Margin="0,8,0,0"
+                                    HeightRequest="44"
+                                    CornerRadius="12"
+                                    BackgroundColor="#3B82F6"
+                                    TextColor="White"
+                                    FontAttributes="Bold"
+                                    Clicked="OnAgendarAhoraClicked" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Servicios"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D" />
+
+                    <CollectionView ItemsSource="{Binding Servicios}"
+                                    ItemsLayout="HorizontalList"
+                                    HeightRequest="182"
+                                    HorizontalScrollBarVisibility="Never">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="White"
+                                        Stroke="#E7ECF4"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 16"
+                                        Margin="0,0,12,0"
+                                        Padding="14"
+                                        WidthRequest="230">
+                                    <Border.Shadow>
+                                        <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                                    </Border.Shadow>
+                                    <VerticalStackLayout Spacing="8">
+                                        <Label Text="{Binding Icono}" FontFamily="FontAwesomeSolid" FontSize="20" />
+                                        <Label Text="{Binding Nombre}"
+                                               FontSize="17"
+                                               FontAttributes="Bold"
+                                               TextColor="#0B1F4D" />
+                                        <Label Text="{Binding Descripcion}"
+                                               FontSize="13"
+                                               TextColor="#64748B"
+                                               LineBreakMode="WordWrap" />
+                                        <Label Text="{Binding Precio}"
+                                               FontSize="16"
+                                               FontAttributes="Bold"
+                                               TextColor="#2563EB" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Mis próximas citas"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D" />
+
+                    <Border BackgroundColor="White"
+                            Stroke="#E7ECF4"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            Padding="16">
+                        <Border.Shadow>
+                            <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                        </Border.Shadow>
+                        <VerticalStackLayout Spacing="0">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                                <Label Text="Fecha" FontSize="13" TextColor="#64748B" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding ProximaCita.Fecha, StringFormat='{0:dd/MM/yyyy}'}"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="#0B1F4D" />
+
+                                <Label Grid.Row="1" Text="Hora" FontSize="13" TextColor="#64748B" />
+                                <Label Grid.Row="1" Grid.Column="1"
+                                       Text="{Binding ProximaCita.Hora}"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="#0B1F4D" />
+
+                                <Label Grid.Row="2" Text="Servicio" FontSize="13" TextColor="#64748B" />
+                                <Label Grid.Row="2" Grid.Column="1"
+                                       Text="{Binding ProximaCita.Servicio}"
+                                       FontSize="14"
+                                       FontAttributes="Bold"
+                                       TextColor="#0B1F4D" />
+                            </Grid>
+
+                            <Border Margin="0,14,0,0"
+                                    HorizontalOptions="Start"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 10"
+                                    BackgroundColor="#EAF3FF"
+                                    Padding="10,5">
+                                <Label Text="{Binding ProximaCita.Estado}"
+                                       TextColor="{Binding ProximaCita.EstadoColor}"
+                                       FontAttributes="Bold"
+                                       FontSize="13" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="14">
+                    <Border.Shadow>
+                        <Shadow Brush="#14000000" Offset="0,2" Radius="8" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="¿Tienes alguna duda?"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="#0B1F4D" />
+                        <Label Text="Contáctanos por WhatsApp o llámanos"
+                               FontSize="13"
+                               TextColor="#64748B" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Border Grid.Row="1"
+                BackgroundColor="White"
+                Stroke="#E7ECF4"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 18,18,0,0"
+                Padding="10,10,10,12">
+            <Grid ColumnDefinitions="*,*,*,*">
+                <VerticalStackLayout Grid.Column="0" Spacing="2" HorizontalOptions="Center">
+                    <Label Text="&#xF015;" FontFamily="FontAwesomeSolid" FontSize="16" HorizontalTextAlignment="Center" TextColor="#0B1F4D" />
+                    <Label Text="Inicio" FontSize="12" TextColor="#0B1F4D" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="Center">
+                    <Label Text="&#xF133;" FontFamily="FontAwesomeSolid" FontSize="16" HorizontalTextAlignment="Center" TextColor="#6B7280" />
+                    <Label Text="Mis citas" FontSize="12" TextColor="#6B7280" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="2" Spacing="2" HorizontalOptions="Center">
+                    <Label Text="&#xF1B9;" FontFamily="FontAwesomeSolid" FontSize="16" HorizontalTextAlignment="Center" TextColor="#6B7280" />
+                    <Button Text="Mis autos"
+                            Padding="0"
+                            FontSize="12"
+                            TextColor="#6B7280"
+                            BackgroundColor="Transparent"
+                            Clicked="OnMisAutosClicked" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="3" Spacing="2" HorizontalOptions="Center">
+                    <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="16" HorizontalTextAlignment="Center" TextColor="#6B7280" />
+                    <Button Text="Mi cuenta"
+                            Padding="0"
+                            FontSize="12"
+                            TextColor="#6B7280"
+                            BackgroundColor="Transparent"
+                            Clicked="OnMiCuentaClicked" />
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+    </Grid>
+
+</ContentPage>

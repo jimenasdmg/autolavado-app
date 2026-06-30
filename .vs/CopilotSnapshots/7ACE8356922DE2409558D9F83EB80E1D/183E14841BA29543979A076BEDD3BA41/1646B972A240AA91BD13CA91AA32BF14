@@ -1,0 +1,62 @@
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class CitaViewModel : INotifyPropertyChanged
+    {
+        private int _siguienteId = 1;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public ObservableCollection<Cita> Citas { get; } = new ObservableCollection<Cita>();
+
+        public void AgendarCita(Cita cita)
+        {
+            if (cita == null)
+            {
+                return;
+            }
+
+            if (cita.Id <= 0)
+            {
+                cita.Id = _siguienteId++;
+            }
+
+            if (string.IsNullOrWhiteSpace(cita.Estado))
+            {
+                cita.Estado = "Agendada";
+            }
+
+            Citas.Add(cita);
+            OnPropertyChanged(nameof(Citas));
+        }
+
+        public bool CancelarCita(int citaId)
+        {
+            var cita = Citas.FirstOrDefault(c => c.Id == citaId);
+            if (cita == null)
+            {
+                return false;
+            }
+
+            cita.Estado = "Cancelada";
+            OnPropertyChanged(nameof(Citas));
+            return true;
+        }
+
+        public IEnumerable<Cita> ObtenerCitas()
+        {
+            return Citas;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

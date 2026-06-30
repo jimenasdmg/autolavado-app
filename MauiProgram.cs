@@ -1,0 +1,121 @@
+﻿using AutoLavadoApp.Repositories;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.ViewModels;
+using AutoLavadoApp.ViewModels.Admin;
+using AutoLavadoApp.ViewModels.Auth;
+using AutoLavadoApp.ViewModels.Cliente;
+using AdminViews = AutoLavadoApp.Views.Admin;
+using AuthViews = AutoLavadoApp.Views.Auth;
+using ClienteViews = AutoLavadoApp.Views.Cliente;
+using EmpleadoViews = AutoLavadoApp.Views.Empleado;
+using CoreServices = AutoLavadoApp.Services.Core;
+using DataServices = AutoLavadoApp.Services.Data;
+using AuthServices = AutoLavadoApp.Services.Auth;
+using AutoLavadoApp.Views.Admin;
+using AutoLavadoApp.Views.Cliente;
+using AutoLavadoApp.Views.Shared;
+
+namespace AutoLavadoApp;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        _ = typeof(AutoLavadoApp.Services.Core.NamespaceAnchor);
+        _ = typeof(AutoLavadoApp.Services.Data.NamespaceAnchor);
+        _ = typeof(AutoLavadoApp.Services.Auth.NamespaceAnchor);
+        _ = typeof(AutoLavadoApp.ViewModels.Admin.NamespaceAnchor);
+        _ = typeof(AutoLavadoApp.ViewModels.Auth.NamespaceAnchor);
+        _ = typeof(AutoLavadoApp.ViewModels.Cliente.NamespaceAnchor);
+        _ = typeof(AutoLavadoApp.ViewModels.Empleado.NamespaceAnchor);
+
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                fonts.AddFont("fa-solid-900.ttf", "FontAwesomeSolid");
+                fonts.AddFont("fa-regular-400.ttf", "FontAwesomeRegular");
+            });
+
+#if DEBUG
+        builder.Logging.AddDebug();
+#endif
+
+        builder.Services.AddSingleton<HttpClient>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.SessionService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.UsuarioService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.VehiculoService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.CitaService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.ServicioService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.EmpleadoService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.ObservacionService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.Data.MensajeInternoService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.MensajeService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.NotificacionService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.AuthService>();
+
+        builder.Services.AddSingleton<CoreServices.SessionService>();
+        builder.Services.AddSingleton<DataServices.UsuarioService>();
+        builder.Services.AddSingleton<DataServices.VehiculoService>();
+        builder.Services.AddSingleton<DataServices.CitaService>();
+        builder.Services.AddSingleton<DataServices.ServicioService>();
+        builder.Services.AddSingleton<DataServices.EmpleadoService>();
+        builder.Services.AddSingleton<DataServices.ObservacionService>();
+        builder.Services.AddSingleton<DataServices.MensajeInternoService>();
+        builder.Services.AddSingleton<DataServices.MensajeService>();
+        builder.Services.AddSingleton<DataServices.NotificacionService>();
+        builder.Services.AddSingleton<AuthServices.AuthService>();
+
+        builder.Services.AddSingleton<IServicioRepository, ServicioRepository>();
+        builder.Services.AddSingleton<ICitaRepository, CitaRepository>();
+        builder.Services.AddSingleton<IUsuarioPerfilRepository, UsuarioPerfilRepository>();
+        builder.Services.AddSingleton<IMensajeRepository, MensajeRepository>();
+        builder.Services.AddSingleton<IVehiculoRepository, VehiculoRepository>();
+
+        builder.Services.AddTransient<AutenticacionViewModel>();
+        builder.Services.AddTransient<RegisterViewModel>();
+        builder.Services.AddTransient<HomeViewModel>();
+        builder.Services.AddTransient<MiCuentaViewModel>();
+        builder.Services.AddTransient<MisVehiculosViewModel>();
+        builder.Services.AddTransient<AgregarVehiculoViewModel>();
+        builder.Services.AddTransient<AgendarCitaViewModel>();
+        builder.Services.AddTransient<MisCitasViewModel>();
+        builder.Services.AddTransient<CitaViewModel>();
+        builder.Services.AddTransient<DetalleCitaViewModel>();
+        builder.Services.AddTransient<AutoLavadoApp.ViewModels.Shared.NotificacionesViewModel>();
+        builder.Services.AddTransient<AdminViewModel>();
+        builder.Services.AddTransient<AdminMensajesViewModel>();
+        builder.Services.AddTransient<CrearEmpleadoViewModel>();
+        builder.Services.AddTransient<EmpleadoViewModel>();
+
+        builder.Services.AddTransient<AuthViews.LoginPage>();
+        builder.Services.AddTransient<AuthViews.RegisterPage>();
+        builder.Services.AddTransient<ClienteViews.HomePage>();
+        builder.Services.AddTransient<ClienteViews.MiCuentaPage>();
+        builder.Services.AddTransient<EditarPerfilPage>();
+        builder.Services.AddTransient<ClienteViews.MisVehiculosPage>();
+        builder.Services.AddTransient<ClienteViews.AgregarVehiculoPage>();
+        builder.Services.AddTransient<ClienteViews.AgendarCitaPage>();
+        builder.Services.AddTransient<ClienteViews.MisCitasPage>();
+        builder.Services.AddTransient<NotificacionesPage>();
+        builder.Services.AddTransient<AdminViews.AdminHomePage>();
+        builder.Services.AddTransient<AdminViews.AdminEmpleadosPage>();
+        builder.Services.AddTransient<AdminViews.AdminServiciosPage>();
+        builder.Services.AddTransient<AdminViews.AdminCuentaPage>();
+        builder.Services.AddTransient<AdminMensajesPage>();
+        builder.Services.AddTransient<EmpleadoViews.EmpleadoHomePage>();
+        builder.Services.AddTransient<EmpleadoViews.EmpleadoCitasPage>();
+        builder.Services.AddTransient<EmpleadoViews.EmpleadoCuentaPage>();
+        // EmpleadoMensajesPage and its ViewModel were removed
+        builder.Services.AddTransient<ConfiguracionPage>();
+
+        // REGISTRO SERVICIOS MENSAJERÍA
+        builder.Services.AddSingleton<AutoLavadoApp.Services.Data.MensajeService>();
+        builder.Services.AddSingleton<AutoLavadoApp.Services.Data.MensajeInternoService>();
+
+        return builder.Build();
+    }
+}

@@ -1,0 +1,133 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AdminCuentaPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="20,24,20,24" Spacing="14">
+                <Label Text="Cuenta administrador"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D" />
+
+                <Border BackgroundColor="#1D4ED8"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="16,12">
+                    <Border.Shadow>
+                        <Shadow Brush="#18000000" Offset="0,3" Radius="8" />
+                    </Border.Shadow>
+                    <HorizontalStackLayout Spacing="12">
+                        <Border WidthRequest="56"
+                                HeightRequest="56"
+                                BackgroundColor="#2563EB"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 28">
+                            <Label Text="{Binding InicialesUsuario}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalTextAlignment="Center" />
+                        </Border>
+                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                            <Label Text="{Binding NombreCompleto}" FontSize="19" FontAttributes="Bold" TextColor="White" />
+                            <Label Text="{Binding Email}" FontSize="13" TextColor="#DBEAFE" />
+                            <Label Text="{Binding RolTexto}" FontSize="12" FontAttributes="Bold" TextColor="#BFDBFE" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="12">
+                    <Border.Shadow>
+                        <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="10">
+                        <Button Text="Editar perfil"
+                                HeightRequest="46"
+                                CornerRadius="12"
+                                TextColor="#0B1F4D"
+                                BackgroundColor="#EFF6FF"
+                                FontAttributes="Bold"
+                                ImageSource="{FontImageSource Glyph=&#xF044;, FontFamily=FontAwesomeSolid, Size=14, Color=#0B1F4D}"
+                                ContentLayout="Left,8"
+                                Command="{Binding EditarPerfilCommand}" />
+
+                        <Button Text="Configuración"
+                                HeightRequest="46"
+                                CornerRadius="12"
+                                TextColor="#0B1F4D"
+                                BackgroundColor="#EFF6FF"
+                                FontAttributes="Bold"
+                                ImageSource="{FontImageSource Glyph=&#xF013;, FontFamily=FontAwesomeSolid, Size=14, Color=#0B1F4D}"
+                                ContentLayout="Left,8"
+                                Command="{Binding ConfiguracionCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border IsVisible="{Binding MostrarEditarPerfil}"
+                        BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="12">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Editar perfil" FontSize="16" FontAttributes="Bold" TextColor="#0B1F4D" />
+                        <Entry Placeholder="Nombre" Text="{Binding Nombre}" />
+                        <Entry Placeholder="Apellido" Text="{Binding ApellidoPaterno}" />
+                        <Entry Placeholder="Teléfono (10 dígitos)" Keyboard="Telephone" MaxLength="10" Text="{Binding Telefono}" />
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Button Text="Cancelar"
+                                    HeightRequest="42"
+                                    CornerRadius="10"
+                                    BackgroundColor="#F1F5F9"
+                                    TextColor="#334155"
+                                    Command="{Binding CancelarPanelesCommand}" />
+                            <Button Grid.Column="1"
+                                    Text="Guardar"
+                                    HeightRequest="42"
+                                    CornerRadius="10"
+                                    BackgroundColor="#2563EB"
+                                    TextColor="White"
+                                    Command="{Binding GuardarPerfilCommand}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="{Binding ErrorDetalle}" TextColor="#B91C1C" IsVisible="{Binding TieneError}" />
+
+                <Button Text="Cerrar sesión"
+                        HeightRequest="44"
+                        CornerRadius="16"
+                        BorderWidth="1"
+                        BorderColor="#CBD5E1"
+                        BackgroundColor="Transparent"
+                        TextColor="#334155"
+                        FontFamily="OpenSansSemibold"
+                        FontSize="14"
+                        Padding="14,10"
+                        ImageSource="{FontImageSource Glyph=&#xF2F5;, FontFamily=FontAwesomeSolid, Size=14, Color=#334155}"
+                        ContentLayout="Left,8"
+                        Command="{Binding CerrarSesionCommand}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid IsVisible="{Binding IsBusy}"
+              BackgroundColor="#80F5F7FB"
+              InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsBusy}" Color="#3B82F6" WidthRequest="42" HeightRequest="42" />
+                <Label Text="Cargando cuenta..." FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

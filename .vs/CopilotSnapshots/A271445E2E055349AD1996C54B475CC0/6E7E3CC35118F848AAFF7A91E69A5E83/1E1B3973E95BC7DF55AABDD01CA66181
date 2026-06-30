@@ -1,0 +1,67 @@
+﻿using AutoLavadoApp.Models;
+
+namespace AutoLavadoApp.Services.Core;
+
+public class SessionService
+{
+    private const string KeyUid = "session_uid";
+    private const string KeyCorreo = "session_correo";
+    private const string KeyNombre = "session_nombre";
+    private const string KeyRol = "session_rol";
+    private const string KeyToken = "session_token";
+
+    public async Task GuardarSesionAsync(string uid, string correo, string token, string rol, string? nombre = null)
+    {
+        Preferences.Set(KeyUid, uid ?? string.Empty);
+        Preferences.Set(KeyCorreo, correo ?? string.Empty);
+        Preferences.Set(KeyNombre, nombre ?? string.Empty);
+        Preferences.Set(KeyRol, rol ?? string.Empty);
+
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            await SecureStorage.SetAsync(KeyToken, token);
+        }
+    }
+
+    public UserSession ObtenerSesionActual()
+    {
+        return new UserSession
+        {
+            Uid = Preferences.Get(KeyUid, string.Empty),
+            Correo = Preferences.Get(KeyCorreo, string.Empty),
+            Nombre = Preferences.Get(KeyNombre, string.Empty),
+            Rol = Preferences.Get(KeyRol, string.Empty),
+            IdToken = SecureStorage.GetAsync(KeyToken).GetAwaiter().GetResult() ?? string.Empty
+        };
+    }
+
+    public string ObtenerUid() => Preferences.Get(KeyUid, string.Empty);
+    public string ObtenerEmail() => Preferences.Get(KeyCorreo, string.Empty);
+    public string ObtenerNombre() => Preferences.Get(KeyNombre, string.Empty);
+    public string ObtenerRol() => Preferences.Get(KeyRol, string.Empty);
+    
+    public string ObtenerToken()
+    {
+        return SecureStorage.GetAsync(KeyToken).GetAwaiter().GetResult() ?? string.Empty;
+    }
+
+    public async Task<string> ObtenerTokenAsync()
+    {
+        return await SecureStorage.GetAsync(KeyToken) ?? string.Empty;
+    }
+
+    public static bool TokenExpirado(string? token)
+    {
+        return string.IsNullOrWhiteSpace(token);
+    }
+
+    public async Task LimpiarSesionAsync()
+    {
+        Preferences.Remove(KeyUid);
+        Preferences.Remove(KeyCorreo);
+        Preferences.Remove(KeyNombre);
+        Preferences.Remove(KeyRol);
+        SecureStorage.Remove(KeyToken);
+        await Task.CompletedTask;
+    }
+}

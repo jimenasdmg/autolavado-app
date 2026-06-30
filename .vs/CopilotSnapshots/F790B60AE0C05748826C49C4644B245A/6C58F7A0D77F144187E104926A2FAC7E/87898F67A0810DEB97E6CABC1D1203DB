@@ -1,0 +1,21 @@
+﻿namespace AutoLavadoApp
+{
+    public partial class App : Application
+    {
+        private const string AuthTokenKey = "auth_token";
+
+        public App()
+        {
+            InitializeComponent();
+        }
+
+        protected override Window CreateWindow(IActivationState? activationState)
+        {
+            var initialPage = Preferences.ContainsKey(AuthTokenKey)
+                ? new NavigationPage(new HomePage())
+                : new NavigationPage(new LoginPage());
+
+            return new Window(initialPage);
+        }
+    }
+}

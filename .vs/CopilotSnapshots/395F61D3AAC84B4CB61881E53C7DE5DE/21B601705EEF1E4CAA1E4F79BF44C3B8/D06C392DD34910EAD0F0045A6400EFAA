@@ -1,0 +1,72 @@
+﻿namespace AutoLavadoApp.Services;
+
+public class SessionService : AutoLavadoApp.Services.Core.SessionService
+{
+    public SessionService() : base()
+    {
+    }
+}
+
+public class FirestoreBaseService : AutoLavadoApp.Services.Core.FirestoreBaseService
+{
+    public FirestoreBaseService(HttpClient httpClient, string? projectId = null) : base(httpClient, projectId)
+    {
+    }
+}
+
+public class UsuarioService : AutoLavadoApp.Services.Data.UsuarioService
+{
+    public UsuarioService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class CitaService : AutoLavadoApp.Services.Data.CitaService
+{
+    public CitaService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class EmpleadoService : AutoLavadoApp.Services.Data.EmpleadoService
+{
+    public EmpleadoService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class ServicioService : AutoLavadoApp.Services.Data.ServicioService
+{
+    public ServicioService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class VehiculoService : AutoLavadoApp.Services.Data.VehiculoService
+{
+    public VehiculoService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class ObservacionService : AutoLavadoApp.Services.Data.ObservacionService
+{
+    public ObservacionService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class MensajeInternoService : AutoLavadoApp.Services.Data.MensajeInternoService
+{
+    public MensajeInternoService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}
+
+public class AuthService : AutoLavadoApp.Services.Auth.AuthService
+{
+    public AuthService(HttpClient httpClient, UsuarioService usuarioService, SessionService sessionService)
+        : base(httpClient, usuarioService, sessionService)
+    {
+    }
+}

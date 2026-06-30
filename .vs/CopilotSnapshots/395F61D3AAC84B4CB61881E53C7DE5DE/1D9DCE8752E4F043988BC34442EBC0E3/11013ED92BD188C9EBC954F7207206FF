@@ -1,0 +1,79 @@
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.Services.Data;
+
+namespace AutoLavadoApp.ViewModels.Shared;
+
+public class NotificacionesViewModel : INotifyPropertyChanged
+{
+    private readonly SessionService _sessionService;
+    private readonly MensajeService _mensajeService;
+    private string _errorDetalle = string.Empty;
+    private bool _isBusy;
+
+    public ObservableCollection<NotificacionMensajeItem> Notificaciones { get; } = new();
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public NotificacionesViewModel(SessionService sessionService, MensajeService mensajeService)
+    {
+        _sessionService = sessionService;
+        _mensajeService = mensajeService;
+    }
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set { if (_isBusy != value) { _isBusy = value; OnPropertyChanged(); } }
+    }
+
+    public string ErrorDetalle
+    {
+        get => _errorDetalle;
+        private set { if (_errorDetalle != value) { _errorDetalle = value; OnPropertyChanged(); } }
+    }
+
+    public async Task CargarAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var sesion = await _sessionService.ObtenerSesionActualAsync();
+            var uid = sesion.Uid;
+            var token = string.IsNullOrWhiteSpace(sesion.IdToken) ? await _sessionService.ObtenerTokenAsync() : sesion.IdToken;
+
+            if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(token))
+            {
+                ErrorDetalle = "No hay sesión activa.";
+                return;
+            }
+
+            var items = await _mensajeService.ObtenerNotificacionesAsync(uid, token);
+            Notificaciones.Clear();
+            foreach (var item in items)
+            {
+                Notificaciones.Add(item);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}

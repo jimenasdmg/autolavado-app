@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AdminServiciosPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="20,24,20,24" Spacing="14">
+                <Label Text="Servicios"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D" />
+
+                <Label Text="Administra catÃ¡logo y precios BRIZZO"
+                       FontSize="14"
+                       TextColor="#64748B" />
+
+                <Button Text="&#xF067;  Agregar servicio"
+                        FontFamily="FontAwesomeSolid"
+                        HeightRequest="44"
+                        CornerRadius="12"
+                        BackgroundColor="#3B82F6"
+                        TextColor="White"
+                        FontAttributes="Bold"
+                        Clicked="OnAgregarServicioClicked" />
+
+                <CollectionView ItemsSource="{Binding Servicios}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border BackgroundColor="White"
+                                    Stroke="#E7ECF4"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="12"
+                                    Margin="0,0,0,10">
+                                <VerticalStackLayout Spacing="8">
+                                    <Label Text="{Binding Nombre}" FontSize="16" FontAttributes="Bold" TextColor="#0B1F4D" />
+                                    <Label Text="{Binding Descripcion}" FontSize="13" TextColor="#64748B" />
+                                    <Grid ColumnDefinitions="Auto,*,*,*" ColumnSpacing="8">
+                                        <Label Text="{Binding PrecioTexto}" FontSize="13" FontAttributes="Bold" TextColor="#2563EB" VerticalTextAlignment="Center" />
+                                        <Button Grid.Column="1"
+                                                Text="Editar"
+                                                HeightRequest="36"
+                                                CornerRadius="10"
+                                                BackgroundColor="#EFF6FF"
+                                                TextColor="#1E40AF"
+                                                FontAttributes="Bold"
+                                                CommandParameter="{Binding .}"
+                                                Clicked="OnEditarServicioClicked" />
+                                        <Button Grid.Column="2"
+                                                Text="Precio"
+                                                HeightRequest="36"
+                                                CornerRadius="10"
+                                                BackgroundColor="#EDE9FE"
+                                                TextColor="#6D28D9"
+                                                FontAttributes="Bold"
+                                                CommandParameter="{Binding .}"
+                                                Clicked="OnCambiarPrecioServicioClicked" />
+                                        <Button Grid.Column="3"
+                                                Text="Activar/Desactivar"
+                                                HeightRequest="36"
+                                                CornerRadius="10"
+                                                BackgroundColor="#F1F5F9"
+                                                TextColor="#334155"
+                                                FontAttributes="Bold"
+                                                CommandParameter="{Binding .}"
+                                                Clicked="OnCambiarEstadoServicioClicked" />
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

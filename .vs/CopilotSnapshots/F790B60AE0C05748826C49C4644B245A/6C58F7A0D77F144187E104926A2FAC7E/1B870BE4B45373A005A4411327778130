@@ -1,0 +1,41 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class RegisterPage : ContentPage
+{
+    private const string AuthTokenKey = "auth_token";
+    private readonly RegisterViewModel _registerViewModel;
+
+    public RegisterPage()
+    {
+        InitializeComponent();
+        _registerViewModel = IPlatformApplication.Current?.Services.GetService<RegisterViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver RegisterViewModel desde DI.");
+        BindingContext = _registerViewModel;
+    }
+
+    private async void OnCrearCuentaClicked(object? sender, EventArgs e)
+    {
+        var ok = await _registerViewModel.RegistrarAsync();
+        if (ok)
+        {
+            Preferences.Set(AuthTokenKey, _registerViewModel.IdToken);
+            await DisplayAlertAsync("Éxito", "Cuenta creada correctamente.", "OK");
+            Application.Current!.MainPage = new NavigationPage(new HomePage());
+            return;
+        }
+
+        await DisplayAlertAsync("Error", _registerViewModel.ErrorMessage, "OK");
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnIrLoginClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+}

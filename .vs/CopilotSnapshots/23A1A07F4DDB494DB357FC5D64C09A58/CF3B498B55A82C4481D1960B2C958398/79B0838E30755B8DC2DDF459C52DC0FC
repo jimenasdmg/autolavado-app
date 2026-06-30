@@ -1,0 +1,24 @@
+﻿using AutoLavadoApp.Models;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.Services.Data;
+
+namespace AutoLavadoApp.Repositories;
+
+public class CitaRepository : ICitaRepository
+{
+    private readonly CitaService _citaService;
+
+    public CitaRepository(CitaService citaService)
+    {
+        _citaService = citaService;
+    }
+
+    public Task<List<Cita>> ObtenerPorUsuarioAsync(string usuarioId, string? idToken = null)
+        => _citaService.ObtenerCitasPorUsuarioAsync(usuarioId, idToken);
+
+    public Task<List<Cita>> ObtenerTodasAsync(string idToken)
+        => _citaService.ObtenerTodasCitasAsync(idToken);
+
+    public Task<Cita?> ObtenerPorIdAsync(string citaId, string? idToken = null)
+        => _citaService.ObtenerPorIdAsync(citaId, idToken);
+}

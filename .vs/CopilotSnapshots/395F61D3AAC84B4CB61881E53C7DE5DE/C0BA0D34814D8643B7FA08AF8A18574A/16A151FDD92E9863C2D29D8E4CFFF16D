@@ -1,0 +1,76 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace AutoLavadoApp.Models
+{
+    public static class EstadosCita
+    {
+        public const string Pendiente = "pendiente";
+        public const string Asignada = "asignada";
+        public const string EnCamino = "en_camino";
+        public const string VehiculoRecogido = "vehiculo_recogido";
+        public const string EnLavado = "en_lavado";
+        public const string Confirmada = "confirmada";
+        public const string EnProceso = "en_proceso";
+        public const string Finalizada = "finalizada";
+        public const string Entregado = "entregado";
+        public const string Cancelada = "cancelada";
+    }
+
+    public static class TiposServicioCita
+    {
+        public const string Sucursal = "sucursal";
+        public const string Domicilio = "domicilio";
+    }
+
+    public class Cita
+    {
+        public string Id { get; set; } = string.Empty;
+        public string UsuarioId { get; set; } = string.Empty;
+        public string VehiculoId { get; set; } = string.Empty;
+        public string ServicioId { get; set; } = string.Empty;
+        public string EmpleadoId { get; set; } = string.Empty;
+
+        public DateTime Fecha { get; set; } = DateTime.Now;
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = EstadosCita.Pendiente;
+        public string Observaciones { get; set; } = string.Empty;
+
+        public string TipoServicio { get; set; } = TiposServicioCita.Sucursal;
+        public string Direccion { get; set; } = string.Empty;
+        public string Referencias { get; set; } = string.Empty;
+        public string Ciudad { get; set; } = string.Empty;
+        public string CodigoPostal { get; set; } = string.Empty;
+        public string HorarioDisponible { get; set; } = string.Empty;
+        public string NotasAdicionales { get; set; } = string.Empty;
+        public double? Latitud { get; set; }
+        public double? Longitud { get; set; }
+
+        public bool EsDomicilio => string.Equals(TipoServicio, TiposServicioCita.Domicilio, StringComparison.OrdinalIgnoreCase);
+
+        public string EstadoTexto => Estado switch
+        {
+            EstadosCita.Pendiente => "Pendiente",
+            EstadosCita.Asignada => "Asignada",
+            EstadosCita.EnCamino => "Empleado en camino",
+            EstadosCita.VehiculoRecogido => "Vehículo recogido",
+            EstadosCita.EnLavado => "En lavado",
+            EstadosCita.Finalizada => "Finalizado",
+            EstadosCita.Entregado => "Entregado",
+            EstadosCita.Cancelada => "Cancelada",
+            _ => Estado
+        };
+
+        public bool TrackAsignado =>
+            Estado is EstadosCita.Asignada or EstadosCita.EnCamino or EstadosCita.VehiculoRecogido or EstadosCita.EnLavado or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackEnCamino =>
+            Estado is EstadosCita.EnCamino or EstadosCita.VehiculoRecogido or EstadosCita.EnLavado or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackRecogido =>
+            Estado is EstadosCita.VehiculoRecogido or EstadosCita.EnLavado or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackLavado =>
+            Estado is EstadosCita.EnLavado or EstadosCita.Finalizada or EstadosCita.Entregado;
+        public bool TrackFinalizado =>
+            Estado is EstadosCita.Finalizada or EstadosCita.Entregado;
+    }
+}

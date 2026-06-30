@@ -1,0 +1,11 @@
+namespace AutoLavadoApp.Constants;
+
+public static class FirestoreCollections
+{
+    public const string Usuarios = "usuarios";
+    public const string Citas = "citas";
+    public const string Vehiculos = "vehiculos";
+    public const string Servicios = "servicios";
+    public const string Mensajes = "mensajes";
+    public const string Notificaciones = "notificaciones";
+}

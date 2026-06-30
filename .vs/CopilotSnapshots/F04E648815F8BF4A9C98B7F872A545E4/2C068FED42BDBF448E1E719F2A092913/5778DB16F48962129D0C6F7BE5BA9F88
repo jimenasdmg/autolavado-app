@@ -1,0 +1,290 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net10.0-android</TargetFrameworks>
+		<TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('linux'))">$(TargetFrameworks);net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
+
+		<!-- Note for MacCatalyst:
+		The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+		When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
+		The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
+		either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+		<!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>AutoLavadoApp</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<!-- Enable XAML source generation for faster build times and improved performance.
+		     This generates C# code from XAML at compile time instead of runtime inflation.
+		     To disable, remove this line.
+		     For individual files, you can override by setting Inflator metadata:
+		       <MauiXaml Update="MyPage.xaml" Inflator="Default" /> (reverts to defaults: Runtime for Debug, XamlC for Release)
+		       <MauiXaml Update="MyPage.xaml" Inflator="Runtime" /> (force runtime inflation) -->
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+
+		<!-- Display name -->
+		<ApplicationTitle>AutoLavadoApp</ApplicationTitle>
+
+		<!-- App Identifier -->
+		<ApplicationId>com.companyname.autolavadoapp</ApplicationId>
+
+		<!-- Versions -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+		<WindowsPackageType>None</WindowsPackageType>
+
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+
+		<!-- Splash Screen -->
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+
+		<!-- Images -->
+		<MauiImage Include="Resources\Images\*" />
+		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
+		
+		<!-- Custom Fonts -->
+		<MauiFont Include="Resources\Fonts\*" />
+
+		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include=".github\copilot-instructions.md" />
+	  <None Include="AutoLavadoApp.Tests\AutoLavadoApp.Tests.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiXaml Update="AdminCuentaPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminEmpleadosPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminHomePage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminMensajesPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminServiciosPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AgendarCitaPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+    <MauiXaml Update="AdminCuentaPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminEmpleadosPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminServiciosPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AgregarVehiculoPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="ConfiguracionPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+    <MauiXaml Update="DetalleCitaPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+      <MauiXaml Update="ConfiguracionPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="AdminMensajesPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="CrearEmpleadoPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="EditarPerfilPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="EmpleadoCitasPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="EmpleadoCuentaPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="EmpleadoHomePage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+      <MauiXaml Update="NotificacionesPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+   <MauiXaml Update="EditarPerfilPage.xaml">
+		<Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="MainPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="MiCuentaPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="MisCitasPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="MisVehiculosPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="NotificacionesPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\Empleado\EmpleadoMensajesPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="AppShell.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </None>
+	</ItemGroup>
+
+  <ItemGroup>
+    <!-- Views/Auth -->
+    <MauiXaml Update="LoginPage.xaml"><Link>Views/Auth/LoginPage.xaml</Link></MauiXaml>
+    <Compile Update="LoginPage.xaml.cs"><Link>Views/Auth/LoginPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="RegisterPage.xaml"><Link>Views/Auth/RegisterPage.xaml</Link></MauiXaml>
+    <Compile Update="RegisterPage.xaml.cs"><Link>Views/Auth/RegisterPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="WelcomePage.xaml"><Link>Views/Auth/WelcomePage.xaml</Link></MauiXaml>
+    <Compile Update="WelcomePage.xaml.cs"><Link>Views/Auth/WelcomePage.xaml.cs</Link></Compile>
+
+    <!-- Views/Cliente -->
+    <MauiXaml Update="HomePage.xaml"><Link>Views/Cliente/HomePage.xaml</Link></MauiXaml>
+    <Compile Update="HomePage.xaml.cs"><Link>Views/Cliente/HomePage.xaml.cs</Link></Compile>
+    <MauiXaml Update="MiCuentaPage.xaml"><Link>Views/Cliente/MiCuentaPage.xaml</Link></MauiXaml>
+    <Compile Update="MiCuentaPage.xaml.cs"><Link>Views/Cliente/MiCuentaPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="MisCitasPage.xaml"><Link>Views/Cliente/MisCitasPage.xaml</Link></MauiXaml>
+    <Compile Update="MisCitasPage.xaml.cs"><Link>Views/Cliente/MisCitasPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="MisVehiculosPage.xaml"><Link>Views/Cliente/MisVehiculosPage.xaml</Link></MauiXaml>
+    <Compile Update="MisVehiculosPage.xaml.cs"><Link>Views/Cliente/MisVehiculosPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="AgendarCitaPage.xaml"><Link>Views/Cliente/AgendarCitaPage.xaml</Link></MauiXaml>
+    <Compile Update="AgendarCitaPage.xaml.cs"><Link>Views/Cliente/AgendarCitaPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="AgregarVehiculoPage.xaml"><Link>Views/Cliente/AgregarVehiculoPage.xaml</Link></MauiXaml>
+    <Compile Update="AgregarVehiculoPage.xaml.cs"><Link>Views/Cliente/AgregarVehiculoPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="DetalleCitaPage.xaml"><Link>Views/Cliente/DetalleCitaPage.xaml</Link></MauiXaml>
+    <Compile Update="DetalleCitaPage.xaml.cs"><Link>Views/Cliente/DetalleCitaPage.xaml.cs</Link></Compile>
+	<MauiXaml Update="ConfiguracionPage.xaml"><Link>Views/Cliente/ConfiguracionPage.xaml</Link></MauiXaml>
+	<Compile Update="ConfiguracionPage.xaml.cs"><Link>Views/Cliente/ConfiguracionPage.xaml.cs</Link></Compile>
+	<MauiXaml Update="EditarPerfilPage.xaml"><Link>Views/Cliente/EditarPerfilPage.xaml</Link></MauiXaml>
+	<Compile Update="EditarPerfilPage.xaml.cs"><Link>Views/Cliente/EditarPerfilPage.xaml.cs</Link></Compile>
+	<MauiXaml Update="NotificacionesPage.xaml"><Link>Views/Shared/NotificacionesPage.xaml</Link></MauiXaml>
+	<Compile Update="NotificacionesPage.xaml.cs"><Link>Views/Shared/NotificacionesPage.xaml.cs</Link></Compile>
+
+    <!-- Views/Admin -->
+    <MauiXaml Update="AdminHomePage.xaml"><Link>Views/Admin/AdminHomePage.xaml</Link></MauiXaml>
+    <Compile Update="AdminHomePage.xaml.cs"><Link>Views/Admin/AdminHomePage.xaml.cs</Link></Compile>
+    <MauiXaml Update="AdminCuentaPage.xaml"><Link>Views/Admin/AdminCuentaPage.xaml</Link></MauiXaml>
+    <Compile Update="AdminCuentaPage.xaml.cs"><Link>Views/Admin/AdminCuentaPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="AdminEmpleadosPage.xaml"><Link>Views/Admin/AdminEmpleadosPage.xaml</Link></MauiXaml>
+    <Compile Update="AdminEmpleadosPage.xaml.cs"><Link>Views/Admin/AdminEmpleadosPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="AdminServiciosPage.xaml"><Link>Views/Admin/AdminServiciosPage.xaml</Link></MauiXaml>
+    <Compile Update="AdminServiciosPage.xaml.cs"><Link>Views/Admin/AdminServiciosPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="CrearEmpleadoPage.xaml"><Link>Views/Admin/CrearEmpleadoPage.xaml</Link></MauiXaml>
+    <Compile Update="CrearEmpleadoPage.xaml.cs"><Link>Views/Admin/CrearEmpleadoPage.xaml.cs</Link></Compile>
+	<MauiXaml Update="AdminMensajesPage.xaml"><Link>Views/Admin/AdminMensajesPage.xaml</Link></MauiXaml>
+	<Compile Update="AdminMensajesPage.xaml.cs"><Link>Views/Admin/AdminMensajesPage.xaml.cs</Link></Compile>
+
+    <!-- Views/Empleado -->
+    <MauiXaml Update="EmpleadoHomePage.xaml"><Link>Views/Empleado/EmpleadoHomePage.xaml</Link></MauiXaml>
+    <Compile Update="EmpleadoHomePage.xaml.cs"><Link>Views/Empleado/EmpleadoHomePage.xaml.cs</Link></Compile>
+	<MauiXaml Update="EmpleadoCitasPage.xaml"><Link>Views/Empleado/EmpleadoCitasPage.xaml</Link></MauiXaml>
+	<Compile Update="EmpleadoCitasPage.xaml.cs"><Link>Views/Empleado/EmpleadoCitasPage.xaml.cs</Link></Compile>
+	<MauiXaml Update="EmpleadoCuentaPage.xaml"><Link>Views/Empleado/EmpleadoCuentaPage.xaml</Link></MauiXaml>
+	<Compile Update="EmpleadoCuentaPage.xaml.cs"><Link>Views/Empleado/EmpleadoCuentaPage.xaml.cs</Link></Compile>
+
+    <!-- Views/Shared -->
+    <MauiXaml Update="MainPage.xaml"><Link>Views/Shared/MainPage.xaml</Link></MauiXaml>
+    <Compile Update="MainPage.xaml.cs"><Link>Views/Shared/MainPage.xaml.cs</Link></Compile>
+    <MauiXaml Update="AppShell.xaml"><Link>Views/Shared/AppShell.xaml</Link></MauiXaml>
+    <Compile Update="AppShell.xaml.cs"><Link>Views/Shared/AppShell.xaml.cs</Link></Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ViewModels -->
+    <Compile Update="ViewModels\Autenticacion.cs"><Link>ViewModels/Auth/Autenticacion.cs</Link></Compile>
+    <Compile Update="ViewModels\RegisterViewModel.cs"><Link>ViewModels/Auth/RegisterViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\MiCuentaViewModel.cs"><Link>ViewModels/Cliente/MiCuentaViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\HomeViewModel.cs"><Link>ViewModels/Cliente/HomeViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\AgendarCitaViewModel.cs"><Link>ViewModels/Cliente/AgendarCitaViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\AgregarVehiculoViewModel.cs"><Link>ViewModels/Cliente/AgregarVehiculoViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\DetalleCitaViewModel.cs"><Link>ViewModels/Cliente/DetalleCitaViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\MisCitasViewModel.cs"><Link>ViewModels/Cliente/MisCitasViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\MisVehiculosViewModel.cs"><Link>ViewModels/Cliente/MisVehiculosViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\AdminViewModel.cs"><Link>ViewModels/Admin/AdminViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\CrearEmpleadoViewModel.cs"><Link>ViewModels/Admin/CrearEmpleadoViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\EmpleadoViewModel.cs"><Link>ViewModels/Empleado/EmpleadoViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\Shared\NotificacionesViewModel.cs"><Link>ViewModels/Shared/NotificacionesViewModel.cs</Link></Compile>
+    <Compile Update="ViewModels\CitaViewModel.cs"><Link>ViewModels/Shared/CitaViewModel.cs</Link></Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Services -->
+    <Compile Update="Services\AuthService.cs"><Link>Services/Auth/AuthService.cs</Link></Compile>
+    <Compile Update="Services\FirebaseErrorMapper.cs"><Link>Services/Auth/FirebaseErrorMapper.cs</Link></Compile>
+    <Compile Update="Services\SessionService.cs"><Link>Services/Core/SessionService.cs</Link></Compile>
+    <Compile Update="Services\FirestoreBaseService.cs"><Link>Services/Data/FirestoreBaseService.cs</Link></Compile>
+    <Compile Update="Services\UsuarioService.cs"><Link>Services/Data/UsuarioService.cs</Link></Compile>
+    <Compile Update="Services\CitaService.cs"><Link>Services/Data/CitaService.cs</Link></Compile>
+    <Compile Update="Services\EmpleadoService.cs"><Link>Services/Data/EmpleadoService.cs</Link></Compile>
+    <Compile Update="Services\ObservacionService.cs"><Link>Services/Data/ObservacionService.cs</Link></Compile>
+    <Compile Update="Services\ServicioService.cs"><Link>Services/Data/ServicioService.cs</Link></Compile>
+    <Compile Update="Services\VehiculoService.cs"><Link>Services/Data/VehiculoService.cs</Link></Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Models -->
+    <Compile Update="Models\Usuario.cs"><Link>Models/Auth/Usuario.cs</Link></Compile>
+    <Compile Update="Models\Cliente.cs"><Link>Models/Cliente/Cliente.cs</Link></Compile>
+    <Compile Update="Models\Empleado.cs"><Link>Models/Empleado/Empleado.cs</Link></Compile>
+    <Compile Update="Models\Cita.cs"><Link>Models/Shared/Cita.cs</Link></Compile>
+    <Compile Update="Models\Observacion.cs"><Link>Models/Shared/Observacion.cs</Link></Compile>
+    <Compile Update="Models\Servicio.cs"><Link>Models/Shared/Servicio.cs</Link></Compile>
+    <Compile Update="Models\Vehiculo.cs"><Link>Models/Shared/Vehiculo.cs</Link></Compile>
+    <Compile Update="Models\MensajeInterno.cs"><Link>Models/Shared/MensajeInterno.cs</Link></Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Views\Admin\AdminTabbedPage.cs">
+      <Link>Views/Admin/AdminTabbedPage.cs</Link>
+    </Compile>
+    <Compile Update="Views\Empleado\EmpleadoTabbedPage.cs">
+	  <Link>Views/Empleado/EmpleadoTabbedPage.cs</Link>
+	</Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+	<Compile Update="Services\MensajeInternoService.cs"><Link>Services/Data/MensajeInternoService.cs</Link></Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="MainPage.xaml.cs" />
+    <MauiXaml Remove="MainPage.xaml" />
+  </ItemGroup>
+
+</Project>

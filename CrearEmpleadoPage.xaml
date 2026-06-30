@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Admin.CrearEmpleadoPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="20,22,20,24" Spacing="14">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Button Text="←"
+                            WidthRequest="38"
+                            HeightRequest="38"
+                            FontSize="20"
+                            CornerRadius="19"
+                            BackgroundColor="White"
+                            TextColor="#0B1F4D"
+                            Clicked="OnVolverClicked" />
+                    <Label Grid.Column="1"
+                           Text="Crear empleado"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D"
+                           VerticalTextAlignment="Center" />
+                </Grid>
+
+                <Label Text="Registra una cuenta de empleado para BRIZZO"
+                       FontSize="14"
+                       TextColor="#64748B" />
+
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14">
+                    <Border.Shadow>
+                        <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="10">
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Nombre" Text="{Binding Nombre}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Apellido paterno" Text="{Binding ApellidoPaterno}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label Text="&#xF007;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Apellido materno" Text="{Binding ApellidoMaterno}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label Text="&#xF0E0;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Correo" Keyboard="Email" Text="{Binding Correo}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label Text="&#xF095;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Teléfono (10 dígitos)" Keyboard="Telephone" MaxLength="10" Text="{Binding Telefono}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                <Label Text="&#xF023;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Contraseña" IsPassword="{Binding IsPasswordHidden}" Text="{Binding Password}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                                <Button Grid.Column="2" Text="{Binding PasswordEyeIcon}" FontFamily="FontAwesomeSolid" BackgroundColor="Transparent" TextColor="#7B849B" FontSize="15" Padding="4,0" IsEnabled="{Binding CanInteract}" Command="{Binding TogglePasswordVisibilityCommand}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Stroke="#D8DEEA" StrokeThickness="1" BackgroundColor="White" StrokeShape="RoundRectangle 12" Padding="12,6">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                <Label Text="&#xF023;" FontFamily="FontAwesomeSolid" FontSize="13" TextColor="#7B849B" VerticalTextAlignment="Center" />
+                                <Entry Grid.Column="1" Placeholder="Confirmar contraseña" IsPassword="{Binding IsConfirmPasswordHidden}" Text="{Binding ConfirmPassword}" TextColor="#1E293B" PlaceholderColor="#94A3B8" IsEnabled="{Binding CanInteract}" />
+                                <Button Grid.Column="2" Text="{Binding ConfirmPasswordEyeIcon}" FontFamily="FontAwesomeSolid" BackgroundColor="Transparent" TextColor="#7B849B" FontSize="15" Padding="4,0" IsEnabled="{Binding CanInteract}" Command="{Binding ToggleConfirmPasswordVisibilityCommand}" />
+                            </Grid>
+                        </Border>
+
+                        <Label Text="{Binding ErrorMessage}" TextColor="#D92D20" FontSize="13" IsVisible="{Binding HasError}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Button Text="Crear empleado"
+                        HeightRequest="50"
+                        CornerRadius="12"
+                        BackgroundColor="#0B1F4D"
+                        TextColor="White"
+                        FontAttributes="Bold"
+                        IsEnabled="{Binding CanInteract}"
+                        Command="{Binding CrearEmpleadoCommand}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid IsVisible="{Binding IsBusy}"
+              BackgroundColor="#80F5F7FB"
+              InputTransparent="False">
+            <VerticalStackLayout VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="10">
+                <ActivityIndicator IsRunning="{Binding IsBusy}" Color="#3B82F6" WidthRequest="42" HeightRequest="42" />
+                <Label Text="Creando empleado..." FontSize="14" FontAttributes="Bold" TextColor="#0B1F4D" />
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,166 @@
+﻿using System;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+
+namespace AutoLavadoApp.Services.Core
+{
+    public class SessionService
+    {
+        private const string UidKey = "session_uid";
+        private const string CorreoKey = "session_correo";
+        private const string EmailKey = "session_email";
+        private const string NombreKey = "session_nombre";
+        private const string TokenKey = "session_token";
+        private const string RolKey = "session_rol";
+
+        public UserSession? SesionActual { get; private set; }
+
+        // Implementación oficial única
+        public async Task GuardarSesionAsync(string uid, string correo, string token, string rol, string? nombre = null)
+        {
+            Preferences.Set(UidKey, uid ?? string.Empty);
+            Preferences.Set(CorreoKey, correo ?? string.Empty);
+            Preferences.Set(EmailKey, correo ?? string.Empty);
+            Preferences.Set(NombreKey, nombre ?? string.Empty);
+            Preferences.Set(RolKey, string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant());
+            await SecureStorage.SetAsync(TokenKey, token ?? string.Empty);
+
+            SesionActual = new UserSession
+            {
+                Uid = uid ?? string.Empty,
+                Correo = correo ?? string.Empty,
+                Nombre = nombre ?? string.Empty,
+                Rol = string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant(),
+                IdToken = token ?? string.Empty
+            };
+        }
+
+        public UserSession? ObtenerSesionActual()
+        {
+            if (SesionActual is not null) return SesionActual;
+
+            var uid = Preferences.Get(UidKey, string.Empty);
+            var correo = Preferences.Get(CorreoKey, string.Empty);
+            if (string.IsNullOrWhiteSpace(correo))
+                correo = Preferences.Get(EmailKey, string.Empty);
+
+            var nombre = Preferences.Get(NombreKey, string.Empty);
+            var rol = Preferences.Get(RolKey, "cliente");
+
+            if (string.IsNullOrWhiteSpace(uid) && string.IsNullOrWhiteSpace(correo))
+                return null;
+
+            SesionActual = new UserSession
+            {
+                Uid = uid,
+                Correo = correo,
+                Nombre = nombre,
+                Rol = string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant(),
+                IdToken = string.Empty
+            };
+
+            return SesionActual;
+        }
+
+        public async Task<string> ObtenerTokenAsync()
+        {
+            var token = await SecureStorage.GetAsync(TokenKey) ?? string.Empty;
+            if (SesionActual is not null) SesionActual.IdToken = token;
+            return token;
+        }
+
+        public string ObtenerUid() => Preferences.Get(UidKey, string.Empty);
+
+        public string ObtenerEmail()
+        {
+            var correo = Preferences.Get(CorreoKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(correo)) return correo;
+            return Preferences.Get(EmailKey, string.Empty);
+        }
+
+        public string ObtenerNombre() => Preferences.Get(NombreKey, string.Empty);
+
+        public string ObtenerRol()
+        {
+            var rol = Preferences.Get(RolKey, "cliente");
+            return string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant();
+        }
+
+        public async Task<bool> TieneSesionActivaAsync()
+        {
+            var uid = ObtenerUid();
+            var token = await ObtenerTokenAsync();
+            return !string.IsNullOrWhiteSpace(uid) && !TokenExpirado(token);
+        }
+
+        public static bool TokenExpirado(string? idToken)
+        {
+            if (string.IsNullOrWhiteSpace(idToken)) return true;
+
+            try
+            {
+                var partes = idToken.Split('.');
+                if (partes.Length < 2) return true;
+
+                var payloadJson = DecodificarBase64Url(partes[1]);
+                using var document = JsonDocument.Parse(payloadJson);
+
+                if (!document.RootElement.TryGetProperty("exp", out var expElement)) return true;
+
+                var exp = expElement.ValueKind switch
+                {
+                    JsonValueKind.Number when expElement.TryGetInt64(out var num) => num,
+                    JsonValueKind.String when long.TryParse(expElement.GetString(), out var strNum) => strNum,
+                    _ => 0L
+                };
+
+                if (exp <= 0) return true;
+
+                var expiracionUtc = DateTimeOffset.FromUnixTimeSeconds(exp);
+                return expiracionUtc <= DateTimeOffset.UtcNow;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private static string DecodificarBase64Url(string base64Url)
+        {
+            var base64 = base64Url.Replace('-', '+').Replace('_', '/');
+            switch (base64.Length % 4)
+            {
+                case 2:
+                    base64 += "==";
+                    break;
+                case 3:
+                    base64 += "=";
+                    break;
+            }
+
+            var bytes = Convert.FromBase64String(base64);
+            return Encoding.UTF8.GetString(bytes);
+        }
+
+        public void CerrarSesion()
+        {
+            Preferences.Remove(UidKey);
+            Preferences.Remove(CorreoKey);
+            Preferences.Remove(EmailKey);
+            Preferences.Remove(NombreKey);
+            Preferences.Remove(RolKey);
+            SecureStorage.Remove(TokenKey);
+            SesionActual = null;
+        }
+    }
+
+    public class UserSession
+    {
+        public string Uid { get; set; } = string.Empty;
+        public string Correo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public string Rol { get; set; } = "cliente";
+        public string IdToken { get; set; } = string.Empty;
+    }
+}

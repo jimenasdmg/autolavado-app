@@ -1,0 +1,36 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class MisVehiculosPage : ContentPage
+{
+    private readonly MisVehiculosViewModel _viewModel;
+
+    public MisVehiculosPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<MisVehiculosViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver MisVehiculosViewModel desde DI.");
+
+        _viewModel.MostrarAlertaAsync = (titulo, mensaje, cancelar) => DisplayAlertAsync(titulo, mensaje, cancelar);
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarVehiculosAsync();
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnAgregarVehiculoClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new AgregarVehiculoPage());
+    }
+}

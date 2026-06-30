@@ -1,0 +1,60 @@
+﻿namespace AutoLavadoApp;
+
+public class AdminTabbedPage : TabbedPage
+{
+    public AdminTabbedPage()
+    {
+        BarBackgroundColor = Color.FromArgb("#FFFFFF");
+        BarTextColor = Color.FromArgb("#64748B");
+        SelectedTabColor = Color.FromArgb("#0B1F4D");
+        UnselectedTabColor = Color.FromArgb("#94A3B8");
+
+        Children.Add(new NavigationPage(new AdminHomePage())
+        {
+            Title = "Inicio",
+            IconImageSource = new FontImageSource
+            {
+                Glyph = "\uf015",
+                FontFamily = "FontAwesomeSolid",
+                Size = 16,
+                Color = Color.FromArgb("#0B1F4D")
+            }
+        });
+
+        Children.Add(new NavigationPage(new AdminEmpleadosPage())
+        {
+            Title = "Empleados",
+            IconImageSource = new FontImageSource
+            {
+                Glyph = "\uf0c0",
+                FontFamily = "FontAwesomeSolid",
+                Size = 16,
+                Color = Color.FromArgb("#0B1F4D")
+            }
+        });
+
+        Children.Add(new NavigationPage(new AdminServiciosPage())
+        {
+            Title = "Servicios",
+            IconImageSource = new FontImageSource
+            {
+                Glyph = "\uf013",
+                FontFamily = "FontAwesomeSolid",
+                Size = 16,
+                Color = Color.FromArgb("#0B1F4D")
+            }
+        });
+
+        Children.Add(new NavigationPage(new AdminCuentaPage())
+        {
+            Title = "Cuenta",
+            IconImageSource = new FontImageSource
+            {
+                Glyph = "\uf007",
+                FontFamily = "FontAwesomeSolid",
+                Size = 16,
+                Color = Color.FromArgb("#0B1F4D")
+            }
+        });
+    }
+}

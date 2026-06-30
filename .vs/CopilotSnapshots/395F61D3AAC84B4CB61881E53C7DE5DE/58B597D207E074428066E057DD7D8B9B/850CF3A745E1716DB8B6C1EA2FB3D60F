@@ -1,0 +1,42 @@
+﻿using AutoLavadoApp.ViewModels.Admin;
+
+namespace AutoLavadoApp;
+
+public partial class AdminMensajesPage : ContentPage
+{
+    private readonly AdminMensajesViewModel _viewModel;
+
+    public AdminMensajesPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AdminMensajesViewModel>()
+            ?? throw new InvalidOperationException("AdminMensajesViewModel no está registrado en DI.");
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarAsync();
+    }
+
+    private void OnConversacionSeleccionada(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.CurrentSelection.FirstOrDefault() is not ConversacionAdminViewItem item)
+        {
+            return;
+        }
+
+        if (_viewModel.SeleccionarConversacionCommand.CanExecute(item))
+        {
+            _viewModel.SeleccionarConversacionCommand.Execute(item);
+        }
+
+        if (sender is CollectionView collection)
+        {
+            collection.SelectedItem = null;
+        }
+    }
+}

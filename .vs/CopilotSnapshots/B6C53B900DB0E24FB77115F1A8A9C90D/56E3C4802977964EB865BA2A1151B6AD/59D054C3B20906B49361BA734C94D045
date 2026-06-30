@@ -1,0 +1,38 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class AgendarCitaPage : ContentPage
+{
+    private readonly AgendarCitaViewModel _viewModel;
+
+    public AgendarCitaPage()
+    {
+        InitializeComponent();
+        NavigationPage.SetHasNavigationBar(this, false);
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AgendarCitaViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AgendarCitaViewModel desde DI.");
+
+        _viewModel.MostrarAlertaAsync = (titulo, mensaje, cancelar) => DisplayAlertAsync(titulo, mensaje, cancelar);
+        _viewModel.NavegarAMisCitasAsync = async () => await Shell.Current.GoToAsync(nameof(MisCitasPage));
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarDatosAsync();
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnAgregarVehiculoClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new AgregarVehiculoPage());
+    }
+}

@@ -1,0 +1,228 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data
+{
+    public class ServicioService : FirestoreBaseService
+    {
+        private const string Coleccion = "servicios";
+
+        public ServicioService(HttpClient httpClient)
+            : base(httpClient)
+        {
+        }
+
+        public async Task<List<Servicio>> ObtenerServiciosActivosAsync()
+        {
+            var doc = await ObtenerColeccionAsync(Coleccion);
+            if (doc is null) return new List<Servicio>();
+
+            var result = new List<Servicio>();
+            if (!doc.Value.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var item = ParseServicio(d);
+                if (item is not null && item.Activo && item.VisibleClientes) result.Add(item);
+            }
+
+            return result;
+        }
+
+        public async Task<List<Servicio>> ObtenerServiciosAsync(string idToken)
+        {
+            var doc = await ObtenerColeccionAsync(Coleccion, idToken);
+            if (doc is null) return new List<Servicio>();
+
+            var result = new List<Servicio>();
+            if (!doc.Value.TryGetProperty("documents", out var documents)) return result;
+
+            foreach (var d in documents.EnumerateArray())
+            {
+                var item = ParseServicio(d);
+                if (item is not null) result.Add(item);
+            }
+
+            return result;
+        }
+
+        public async Task CrearServicioAsync(
+            string nombre,
+            string descripcion,
+            decimal precio,
+            int duracionMinutos,
+            bool activo,
+            bool visibleClientes,
+            string imagen,
+            string idToken)
+        {
+            var id = Guid.NewGuid().ToString("N");
+            var body = new
+            {
+                fields = new
+                {
+                    id = new { stringValue = id },
+                    nombre = new { stringValue = nombre },
+                    descripcion = new { stringValue = descripcion },
+                    precio = new { doubleValue = (double)precio },
+                    duracionMinutos = new { integerValue = duracionMinutos },
+                    activo = new { booleanValue = activo },
+                    visibleClientes = new { booleanValue = visibleClientes },
+                    imagen = new { stringValue = imagen ?? string.Empty },
+                    fechaCreacion = new { timestampValue = DateTime.UtcNow.ToString("O") }
+                }
+            };
+
+            await CrearDocumentoAsync(Coleccion, body, id, idToken);
+        }
+
+        public async Task EditarServicioAsync(
+            string servicioId,
+            string nombre,
+            string descripcion,
+            decimal precio,
+            int duracionMinutos,
+            string imagen,
+            string idToken)
+        {
+            var body = new
+            {
+                fields = new
+                {
+                    nombre = new { stringValue = nombre },
+                    descripcion = new { stringValue = descripcion },
+                    precio = new { doubleValue = (double)precio },
+                    duracionMinutos = new { integerValue = duracionMinutos },
+                    imagen = new { stringValue = imagen ?? string.Empty }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible editar el servicio.", "SERVICE_EDIT_FAILED");
+            }
+        }
+
+        public async Task CambiarPrecioAsync(string servicioId, decimal nuevoPrecio, string idToken)
+        {
+            var url = $"{BuildDocumentUrl(Coleccion, servicioId)}?updateMask.fieldPaths=precio";
+            var body = new
+            {
+                fields = new
+                {
+                    precio = new { doubleValue = (double)nuevoPrecio }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible actualizar el precio.", "SERVICE_PRICE_UPDATE_FAILED");
+            }
+        }
+
+        public async Task CambiarEstadoAsync(string servicioId, bool activo, string idToken)
+        {
+            var body = new
+            {
+                fields = new
+                {
+                    activo = new { booleanValue = activo }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible actualizar el estado del servicio.", "SERVICE_STATUS_UPDATE_FAILED");
+            }
+        }
+
+        public async Task CambiarVisibleClientesAsync(string servicioId, bool visibleClientes, string idToken)
+        {
+            var body = new
+            {
+                fields = new
+                {
+                    visibleClientes = new { booleanValue = visibleClientes }
+                }
+            };
+
+            var ok = await CrearDocumentoAsync(Coleccion, body, servicioId, idToken);
+            if (!ok)
+            {
+                throw new FirebaseServiceException("No fue posible actualizar la visibilidad del servicio.", "SERVICE_VISIBILITY_UPDATE_FAILED");
+            }
+        }
+
+        private static Servicio? ParseServicio(JsonElement doc)
+        {
+            if (!doc.TryGetProperty("fields", out var f)) return null;
+
+            var name = doc.TryGetProperty("name", out var n) ? n.GetString() : null;
+            var id = ReadString(f, "id");
+            if (string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(name)) id = name.Split('/').Last();
+
+            return new Servicio
+            {
+                Id = id ?? string.Empty,
+                Nombre = ReadString(f, "nombre") ?? string.Empty,
+                Descripcion = ReadString(f, "descripcion") ?? string.Empty,
+                Precio = ReadDecimal(f, "precio"),
+                DuracionMinutos = ReadInt(f, "duracionMinutos"),
+                Activo = ReadBool(f, "activo", true),
+                VisibleClientes = ReadBool(f, "visibleClientes", true),
+                Imagen = ReadString(f, "imagen") ?? string.Empty,
+                FechaCreacion = ReadTimestamp(f, "fechaCreacion") ?? DateTime.UtcNow
+            };
+        }
+
+        private static string? ReadString(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+            return null;
+        }
+
+        private static int ReadInt(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("integerValue", out var i) && int.TryParse(i.GetString(), out var n)) return n;
+            return 0;
+        }
+
+        private static decimal ReadDecimal(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return 0;
+            if (v.TryGetProperty("doubleValue", out var d) && d.TryGetDouble(out var dv)) return (decimal)dv;
+            if (v.TryGetProperty("integerValue", out var i) && decimal.TryParse(i.GetString(), out var iv)) return iv;
+            return 0;
+        }
+
+        private static bool ReadBool(JsonElement fields, string key, bool fallback = false)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return fallback;
+            if (v.TryGetProperty("booleanValue", out var b) && b.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                return b.GetBoolean();
+            }
+
+            return fallback;
+        }
+
+        private static DateTime? ReadTimestamp(JsonElement fields, string key)
+        {
+            if (!fields.TryGetProperty(key, out var v)) return null;
+            if (!v.TryGetProperty("timestampValue", out var ts)) return null;
+            if (!DateTime.TryParse(ts.GetString(), out var parsed)) return null;
+            return parsed;
+        }
+    }
+}

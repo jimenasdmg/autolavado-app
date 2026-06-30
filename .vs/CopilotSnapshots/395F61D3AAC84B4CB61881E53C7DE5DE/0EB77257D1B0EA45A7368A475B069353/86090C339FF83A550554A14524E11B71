@@ -1,0 +1,13 @@
+﻿namespace AutoLavadoApp.Models;
+
+public class MensajeInterno
+{
+    public string Id { get; set; } = string.Empty;
+    public string RemitenteUid { get; set; } = string.Empty;
+    public string RemitenteNombre { get; set; } = string.Empty;
+    public string DestinatarioUid { get; set; } = string.Empty;
+    public string DestinatarioNombre { get; set; } = string.Empty;
+    public string Mensaje { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public bool Leido { get; set; }
+}

@@ -1,0 +1,72 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class MisCitasViewModel : BaseViewModel
+    {
+        private readonly CitaService _citaService;
+        private readonly SessionService _sessionService;
+
+        public ObservableCollection<Cita> Citas { get; } = new();
+
+        public ICommand CargarCommand { get; }
+        public ICommand CancelarCommand { get; }
+
+        public MisCitasViewModel(CitaService citaService, SessionService sessionService)
+        {
+            _citaService = citaService;
+            _sessionService = sessionService;
+
+            CargarCommand = new Command(async () => await CargarAsync());
+            CancelarCommand = new Command<Cita>(async c => await CancelarAsync(c));
+        }
+
+        public async Task CargarAsync()
+        {
+            if (IsBusy) return;
+
+            try
+            {
+                IsBusy = true;
+                Citas.Clear();
+
+                var uid = _sessionService.ObtenerUid();
+                if (string.IsNullOrWhiteSpace(uid))
+                {
+                    await Shell.Current.DisplayAlert("Sesión", "No hay sesión activa.", "OK");
+                    return;
+                }
+
+                var lista = await _citaService.ObtenerCitasPorUsuarioAsync(uid);
+                foreach (var c in lista) Citas.Add(c);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public async Task CancelarAsync(Cita? cita)
+        {
+            if (cita is null) return;
+            if (cita.Estado is EstadosCita.Cancelada or EstadosCita.Finalizada) return;
+
+            var confirmar = await Shell.Current.DisplayAlert("Cancelar", "¿Deseas cancelar esta cita?", "Sí", "No");
+            if (!confirmar) return;
+
+            var ok = await _citaService.CancelarCitaAsync(cita.Id);
+            if (!ok)
+            {
+                await Shell.Current.DisplayAlert("Error", "No se pudo cancelar la cita.", "OK");
+                return;
+            }
+
+            await CargarAsync();
+        }
+    }
+}

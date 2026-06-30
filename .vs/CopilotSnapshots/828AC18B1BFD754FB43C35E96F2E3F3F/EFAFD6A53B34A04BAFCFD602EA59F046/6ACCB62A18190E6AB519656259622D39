@@ -1,0 +1,145 @@
+﻿using AutoLavadoApp.Services;
+using AutoLavadoApp.Services.Data;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.Models;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+
+namespace AutoLavadoApp.ViewModels.Admin;
+
+public partial class AdminMensajesViewModel
+{
+    private IMensajeRepository? _mensajeRepository;
+    private CancellationTokenSource? _pollingCts;
+
+    public ObservableCollection<MensajeInterno> Mensajes { get; } = new();
+    public string IdToken { get; set; } = string.Empty;
+    public string AdminUid { get; set; } = string.Empty;
+    public string EmpleadoUidSeleccionado { get; set; } = string.Empty;
+    public string EmpleadoNombreSeleccionado { get; set; } = string.Empty;
+    public string TextoMensaje { get; set; } = string.Empty;
+    public int NoLeidosCount { get; set; }
+    public object? ScrollToLastRequest { get; set; }
+
+    public Func<string, string, string, Task<bool>>? MostrarAlertaAsync { get; set; }
+
+    public AdminMensajesViewModel() { }
+    public AdminMensajesViewModel(IMensajeRepository mensajeRepository)
+    {
+        _mensajeRepository = mensajeRepository;
+    }
+
+    public string ConversacionIdActual =>
+        string.IsNullOrWhiteSpace(AdminUid) || string.IsNullOrWhiteSpace(EmpleadoUidSeleccionado)
+            ? string.Empty
+            : AutoLavadoApp.Services.Data.MensajeService.ConstruirConversacionId(AdminUid, EmpleadoUidSeleccionado);
+
+    public void ConfigurarEmpleadoObjetivo(string empleadoUid, string empleadoNombre)
+    {
+        EmpleadoUidSeleccionado = empleadoUid;
+        EmpleadoNombreSeleccionado = empleadoNombre;
+    }
+
+    public async Task InicializarMensajesAsync(string adminUid, string empleadoUid, string empleadoNombre)
+    {
+        AdminUid = adminUid;
+        EmpleadoUidSeleccionado = empleadoUid;
+        EmpleadoNombreSeleccionado = empleadoNombre;
+
+        Debug.WriteLine($"[MENSAJES][ADMIN][INIT] admin={AdminUid} empleado={EmpleadoUidSeleccionado} conv={ConversacionIdActual}");
+
+        await RefrescarMensajesAsync();
+        IniciarPolling();
+    }
+
+    public async Task RefrescarMensajesAsync()
+    {
+        if (IsBusy)
+            return;
+
+        try
+        {
+            IsBusy = true;
+            if (string.IsNullOrWhiteSpace(ConversacionIdActual)) return;
+            if (string.IsNullOrWhiteSpace(IdToken)) return; // usar token existente del VM
+
+            var mensajes = await _mensajeRepository.ObtenerMensajesAsync(ConversacionIdActual, IdToken);
+            Mensajes.Clear();
+            foreach (var m in mensajes)
+                Mensajes.Add(m);
+
+            await _mensajeRepository.MarcarComoLeidoAsync(ConversacionIdActual, AdminUid, IdToken);
+            NoLeidosCount = await _mensajeRepository.ContarNoLeidosAsync(AdminUid, IdToken);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AdminMensajesViewModel][RefrescarMensajesAsync][ERROR] {ex}");
+            // Evita caída de la app ante 403 u otros errores temporales
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task<bool> EnviarMensajeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(TextoMensaje)) return false;
+        if (string.IsNullOrWhiteSpace(IdToken)) return false;
+
+        var ok = await _mensajeRepository.EnviarAsync(
+            AdminUid,
+            AdminUid,
+            "admin",
+            EmpleadoUidSeleccionado,
+            TextoMensaje,
+            IdToken);
+
+        Debug.WriteLine($"[MENSAJES][ADMIN][SEND] ok={ok} conv={ConversacionIdActual} from={AdminUid} to={EmpleadoUidSeleccionado}");
+
+        if (ok)
+        {
+            TextoMensaje = string.Empty;
+            await RefrescarMensajesAsync();
+        }
+
+        return ok;
+    }
+
+    public void IniciarPolling()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await RefrescarMensajesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MENSAJES][ADMIN][POLL][ERROR] {ex.Message}");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), token);
+            }
+        }, token);
+    }
+
+    public void DetenerPolling() => _pollingCts?.Cancel();
+}
+
+public class MensajeChatItem
+{
+    public string Id { get; set; } = string.Empty;
+    public string Mensaje { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public bool EsPropio { get; set; }
+    public string Fondo => EsPropio ? "#2563EB" : "#E2E8F0";
+    public string ColorTexto => EsPropio ? "White" : "#0F172A";
+    public LayoutOptions Alineacion => EsPropio ? LayoutOptions.End : LayoutOptions.Start;
+}

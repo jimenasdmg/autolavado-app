@@ -1,0 +1,70 @@
+﻿using AutoLavadoApp.ViewModels.Empleado;
+using AutoLavadoApp.Services.Core;
+using AutoLavadoApp.Services.Data;
+using System.Diagnostics;
+
+namespace AutoLavadoApp;
+
+public partial class EmpleadoMensajesPage : ContentPage
+{
+    private readonly EmpleadoMensajesViewModel _viewModel;
+
+    public EmpleadoMensajesPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<EmpleadoMensajesViewModel>()
+            ?? throw new InvalidOperationException("EmpleadoMensajesViewModel no está registrado en DI.");
+
+        _viewModel.MostrarAlertaAsync = async (titulo, mensaje, cancelar) =>
+        {
+            await DisplayAlert(titulo, mensaje, cancelar);
+            return true;
+        };
+
+        BindingContext = _viewModel;
+    }
+
+    private async void OnEnviarClicked(object sender, EventArgs e)
+    {
+        if (BindingContext is not EmpleadoMensajesViewModel vm) return;
+        var ok = await vm.EnviarMensajeAsync();
+        Debug.WriteLine($"[MENSAJES][EMPLEADO][UI][SEND] ok={ok}");
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        if (BindingContext is EmpleadoMensajesViewModel vm)
+        {
+            var session = IPlatformApplication.Current?.Services.GetService<SessionService>();
+            if (session is not null)
+            {
+                vm.IdToken = await session.ObtenerTokenAsync();
+                vm.EmpleadoUid = session.ObtenerUid();
+            }
+
+            if (string.IsNullOrWhiteSpace(vm.AdminUid) && !string.IsNullOrWhiteSpace(vm.IdToken))
+            {
+                var usuarioService = IPlatformApplication.Current?.Services.GetService<UsuarioService>();
+                var admin = usuarioService is null ? null : await usuarioService.ObtenerPrimerUsuarioPorRolAsync("admin", vm.IdToken);
+                if (admin is not null)
+                {
+                    vm.AdminUid = admin.Uid;
+                }
+            }
+
+            await vm.RefrescarMensajesAsync();
+            vm.IniciarPolling();
+        }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        if (BindingContext is EmpleadoMensajesViewModel vm)
+        {
+            vm.DetenerPolling();
+        }
+    }
+}

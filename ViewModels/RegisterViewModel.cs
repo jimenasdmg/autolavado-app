@@ -1,0 +1,513 @@
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Constants;
+using AutoLavadoApp.Services;
+using System;
+using System.ComponentModel;
+using System.Net.Mail;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+
+namespace AutoLavadoApp.ViewModels.Auth
+{
+    public class RegisterViewModel : INotifyPropertyChanged
+    {
+        private readonly AuthService _authService;
+        private readonly UsuarioService _usuarioService;
+        private readonly SessionService _sessionService;
+        private const string CodigoAdminPermitido = "BRIZZO2026";
+
+        private string _nombre = string.Empty;
+        private string _apellidoPaterno = string.Empty;
+        private string _apellidoMaterno = string.Empty;
+        private string _email = string.Empty;
+        private string _password = string.Empty;
+        private string _confirmPassword = string.Empty;
+        private string _tipoCuentaSeleccionado = "Cliente";
+        private string _codigoAdministrador = string.Empty;
+        private bool _aceptaTerminos;
+        private bool _isPasswordHidden = true;
+        private bool _isConfirmPasswordHidden = true;
+        private string _errorMessage = string.Empty;
+        private string _nombreError = string.Empty;
+        private string _apellidoPaternoError = string.Empty;
+        private string _emailError = string.Empty;
+        private string _passwordError = string.Empty;
+        private string _confirmPasswordError = string.Empty;
+        private string _codigoAdministradorError = string.Empty;
+        private string _terminosError = string.Empty;
+        private bool _isBusy;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public RegisterViewModel(AuthService authService, UsuarioService usuarioService, SessionService sessionService)
+        {
+            _authService = authService;
+            _usuarioService = usuarioService;
+            _sessionService = sessionService;
+            SeleccionarClienteCommand = new Command(() => TipoCuentaSeleccionado = "Cliente");
+            SeleccionarAdministradorCommand = new Command(() => TipoCuentaSeleccionado = "Administrador");
+            TogglePasswordVisibilityCommand = new Command(TogglePasswordVisibility);
+            ToggleConfirmPasswordVisibilityCommand = new Command(ToggleConfirmPasswordVisibility);
+        }
+
+        public string Nombre
+        {
+            get => _nombre;
+            set => SetProperty(ref _nombre, value);
+        }
+
+        public string ApellidoPaterno
+        {
+            get => _apellidoPaterno;
+            set => SetProperty(ref _apellidoPaterno, value);
+        }
+
+        public string ApellidoMaterno
+        {
+            get => _apellidoMaterno;
+            set => SetProperty(ref _apellidoMaterno, value);
+        }
+
+        public string Email
+        {
+            get => _email;
+            set => SetProperty(ref _email, value);
+        }
+
+        public string Password
+        {
+            get => _password;
+            set => SetProperty(ref _password, value);
+        }
+
+        public string ConfirmPassword
+        {
+            get => _confirmPassword;
+            set => SetProperty(ref _confirmPassword, value);
+        }
+
+        public string[] TiposCuenta { get; } = { "Cliente", "Administrador" };
+
+        public string TipoCuentaSeleccionado
+        {
+            get => _tipoCuentaSeleccionado;
+            set
+            {
+                if (SetProperty(ref _tipoCuentaSeleccionado, value))
+                {
+                    OnPropertyChanged(nameof(EsAdministrador));
+                    OnPropertyChanged(nameof(EsCliente));
+                    OnPropertyChanged(nameof(IsClienteSelected));
+                    OnPropertyChanged(nameof(IsAdministradorSelected));
+                }
+            }
+        }
+
+        public bool EsCliente => string.Equals(TipoCuentaSeleccionado, "Cliente", StringComparison.Ordinal);
+        public bool EsAdministrador => string.Equals(TipoCuentaSeleccionado, "Administrador", StringComparison.Ordinal);
+        public bool IsClienteSelected => EsCliente;
+        public bool IsAdministradorSelected => EsAdministrador;
+
+        public string CodigoAdministrador
+        {
+            get => _codigoAdministrador;
+            set => SetProperty(ref _codigoAdministrador, value);
+        }
+
+        public bool AceptaTerminos
+        {
+            get => _aceptaTerminos;
+            set => SetProperty(ref _aceptaTerminos, value);
+        }
+
+        public bool IsPasswordHidden
+        {
+            get => _isPasswordHidden;
+            set
+            {
+                if (SetProperty(ref _isPasswordHidden, value))
+                {
+                    OnPropertyChanged(nameof(PasswordEyeIcon));
+                }
+            }
+        }
+
+        public bool IsConfirmPasswordHidden
+        {
+            get => _isConfirmPasswordHidden;
+            set
+            {
+                if (SetProperty(ref _isConfirmPasswordHidden, value))
+                {
+                    OnPropertyChanged(nameof(ConfirmPasswordEyeIcon));
+                }
+            }
+        }
+
+        public string PasswordEyeIcon => IsPasswordHidden ? "\uf06e" : "\uf070";
+
+        public string ConfirmPasswordEyeIcon => IsConfirmPasswordHidden ? "\uf06e" : "\uf070";
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            private set
+            {
+                if (SetProperty(ref _errorMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasError));
+                }
+            }
+        }
+
+        public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+        public string NombreError
+        {
+            get => _nombreError;
+            private set
+            {
+                if (SetProperty(ref _nombreError, value))
+                {
+                    OnPropertyChanged(nameof(HasNombreError));
+                }
+            }
+        }
+
+        public bool HasNombreError => !string.IsNullOrWhiteSpace(NombreError);
+
+        public string ApellidoPaternoError
+        {
+            get => _apellidoPaternoError;
+            private set
+            {
+                if (SetProperty(ref _apellidoPaternoError, value))
+                {
+                    OnPropertyChanged(nameof(HasApellidoPaternoError));
+                }
+            }
+        }
+
+        public bool HasApellidoPaternoError => !string.IsNullOrWhiteSpace(ApellidoPaternoError);
+
+        public string EmailError
+        {
+            get => _emailError;
+            private set
+            {
+                if (SetProperty(ref _emailError, value))
+                {
+                    OnPropertyChanged(nameof(HasEmailError));
+                }
+            }
+        }
+
+        public bool HasEmailError => !string.IsNullOrWhiteSpace(EmailError);
+
+        public string PasswordError
+        {
+            get => _passwordError;
+            private set
+            {
+                if (SetProperty(ref _passwordError, value))
+                {
+                    OnPropertyChanged(nameof(HasPasswordError));
+                }
+            }
+        }
+
+        public bool HasPasswordError => !string.IsNullOrWhiteSpace(PasswordError);
+
+        public string ConfirmPasswordError
+        {
+            get => _confirmPasswordError;
+            private set
+            {
+                if (SetProperty(ref _confirmPasswordError, value))
+                {
+                    OnPropertyChanged(nameof(HasConfirmPasswordError));
+                }
+            }
+        }
+
+        public bool HasConfirmPasswordError => !string.IsNullOrWhiteSpace(ConfirmPasswordError);
+
+        public string CodigoAdministradorError
+        {
+            get => _codigoAdministradorError;
+            private set
+            {
+                if (SetProperty(ref _codigoAdministradorError, value))
+                {
+                    OnPropertyChanged(nameof(HasCodigoAdministradorError));
+                }
+            }
+        }
+
+        public bool HasCodigoAdministradorError => !string.IsNullOrWhiteSpace(CodigoAdministradorError);
+
+        public string TerminosError
+        {
+            get => _terminosError;
+            private set
+            {
+                if (SetProperty(ref _terminosError, value))
+                {
+                    OnPropertyChanged(nameof(HasTerminosError));
+                }
+            }
+        }
+
+        public bool HasTerminosError => !string.IsNullOrWhiteSpace(TerminosError);
+
+        public ICommand TogglePasswordVisibilityCommand { get; }
+        public ICommand ToggleConfirmPasswordVisibilityCommand { get; }
+        public ICommand SeleccionarClienteCommand { get; }
+        public ICommand SeleccionarAdministradorCommand { get; }
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set => SetProperty(ref _isBusy, value);
+        }
+
+        public bool CanInteract => !IsBusy;
+
+        public async Task<bool> RegistrarAsync()
+        {
+            if (IsBusy)
+            {
+                return false;
+            }
+
+            ErrorMessage = string.Empty;
+
+            if (!ValidarCampos())
+            {
+                return false;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var result = await _authService.RegisterAsync(Email.Trim(), Password);
+                if (!result.IsSuccess)
+                {
+                    var raw = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                        ? "Error al crear la cuenta."
+                        : result.ErrorMessage;
+                    ErrorMessage = MapearErrorFirebase(raw);
+                    return false;
+                }
+
+                var userId = result.UserId ?? string.Empty;
+                var idToken = result.IdToken ?? string.Empty;
+
+                var usuario = new Usuario
+                {
+                    Uid = userId,
+                    Nombre = Nombre.Trim(),
+                    ApellidoPaterno = ApellidoPaterno.Trim(),
+                    ApellidoMaterno = ApellidoMaterno?.Trim() ?? string.Empty,
+                    Correo = Email.Trim(),
+                    Rol = ObtenerRolSeleccionado(),
+                    Activo = true,
+                    IdToken = idToken
+                };
+
+                var guardado = await _usuarioService.GuardarUsuarioAsync(usuario);
+                if (!guardado)
+                {
+                    ErrorMessage = "No fue posible guardar el usuario en Firestore.";
+                    return false;
+                }
+
+                await _sessionService.GuardarSesionAsync(
+                    userId,
+                    Email.Trim(),
+                    idToken,
+                    ObtenerRolSeleccionado(),
+                    $"{Nombre.Trim()} {ApellidoPaterno.Trim()}".Trim());
+
+                return true;
+            }
+            catch (FirebaseServiceException ex)
+            {
+                ErrorMessage = MapearErrorFirebase(ex.Message);
+                return false;
+            }
+            catch
+            {
+                ErrorMessage = "Ocurrió un error al crear la cuenta. Intenta nuevamente.";
+                return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private bool ValidarCampos()
+        {
+            LimpiarErroresValidacion();
+            ErrorMessage = string.Empty;
+
+            Nombre = Nombre?.Trim() ?? string.Empty;
+            ApellidoPaterno = ApellidoPaterno?.Trim() ?? string.Empty;
+            ApellidoMaterno = ApellidoMaterno?.Trim() ?? string.Empty;
+            Email = Email?.Trim() ?? string.Empty;
+            CodigoAdministrador = CodigoAdministrador?.Trim() ?? string.Empty;
+
+            var esValido = true;
+
+            if (string.IsNullOrWhiteSpace(Nombre))
+            {
+                NombreError = "Ingresa tu nombre.";
+                esValido = false;
+            }
+            else if (Nombre.Length < 2)
+            {
+                NombreError = "Tu nombre debe tener al menos 2 caracteres.";
+                esValido = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(ApellidoPaterno))
+            {
+                ApellidoPaternoError = "Ingresa tu apellido paterno.";
+                esValido = false;
+            }
+
+            if (!EsEmailValido(Email))
+            {
+                EmailError = "Ingresa un correo electrónico válido.";
+                esValido = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(Password) || Password.Length < 6)
+            {
+                PasswordError = "La contraseña debe tener al menos 6 caracteres.";
+                esValido = false;
+            }
+
+            if (Password != ConfirmPassword)
+            {
+                ConfirmPasswordError = "La confirmación de contraseña no coincide.";
+                esValido = false;
+            }
+
+            if (EsAdministrador && !string.Equals(CodigoAdministrador, CodigoAdminPermitido, StringComparison.Ordinal))
+            {
+                CodigoAdministradorError = "Código de administrador inválido.";
+                esValido = false;
+            }
+
+            if (!AceptaTerminos)
+            {
+                TerminosError = "Debes aceptar los términos y condiciones.";
+                esValido = false;
+            }
+
+            if (!esValido)
+            {
+                ErrorMessage = "Corrige los campos marcados para continuar.";
+            }
+
+            return esValido;
+        }
+
+        private string ObtenerRolSeleccionado()
+        {
+            return EsAdministrador ? Roles.Admin : Roles.Cliente;
+        }
+
+        private void LimpiarErroresValidacion()
+        {
+            NombreError = string.Empty;
+            ApellidoPaternoError = string.Empty;
+            EmailError = string.Empty;
+            PasswordError = string.Empty;
+            ConfirmPasswordError = string.Empty;
+            CodigoAdministradorError = string.Empty;
+            TerminosError = string.Empty;
+        }
+
+        private static bool EsEmailValido(string? email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return false;
+            }
+
+            try
+            {
+                var direccion = new MailAddress(email);
+                return string.Equals(direccion.Address, email.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string MapearErrorFirebase(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return "No fue posible crear la cuenta.";
+            }
+
+            var message = raw.ToLowerInvariant();
+            if (message.Contains("email-already-in-use") || message.Contains("email_exists"))
+            {
+                return "Ese correo ya está registrado";
+            }
+
+            if (message.Contains("invalid-credential") || message.Contains("invalid_login_credentials"))
+            {
+                return "Correo o contraseña incorrectos";
+            }
+
+            if (message.Contains("weak-password") || message.Contains("password should be at least"))
+            {
+                return "La contraseña es demasiado débil";
+            }
+
+            return raw;
+        }
+
+        private void TogglePasswordVisibility()
+        {
+            IsPasswordHidden = !IsPasswordHidden;
+        }
+
+        private void ToggleConfirmPasswordVisibility()
+        {
+            IsConfirmPasswordHidden = !IsConfirmPasswordHidden;
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+
+            if (propertyName == nameof(IsBusy))
+            {
+                OnPropertyChanged(nameof(CanInteract));
+            }
+
+            return true;
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

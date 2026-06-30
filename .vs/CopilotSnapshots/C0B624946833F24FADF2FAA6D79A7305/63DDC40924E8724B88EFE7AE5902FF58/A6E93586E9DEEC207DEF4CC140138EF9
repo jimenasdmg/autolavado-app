@@ -1,0 +1,10 @@
+﻿using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data;
+
+public class MensajeService : MensajeInternoService
+{
+    public MensajeService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+}

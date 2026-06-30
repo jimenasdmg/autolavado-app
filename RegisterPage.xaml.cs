@@ -1,0 +1,76 @@
+using AutoLavadoApp.ViewModels;
+using AutoLavadoApp.ViewModels.Auth;
+using AutoLavadoApp.Views.Admin;
+using AutoLavadoApp.Views.Cliente;
+
+namespace AutoLavadoApp.Views.Auth;
+
+public partial class RegisterPage : ContentPage
+{
+    private readonly RegisterViewModel _registerViewModel;
+
+    public RegisterPage()
+    {
+        InitializeComponent();
+        NavigationPage.SetHasNavigationBar(this, false);
+        _registerViewModel = IPlatformApplication.Current?.Services.GetService<RegisterViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver RegisterViewModel desde DI.");
+        BindingContext = _registerViewModel;
+    }
+
+    private async void OnCrearCuentaClicked(object? sender, EventArgs e)
+    {
+        var ok = await _registerViewModel.RegistrarAsync();
+        if (ok)
+        {
+            await DisplayAlertAsync("✅ Cuenta creada", "Tu cuenta se creó correctamente.", "Continuar");
+            Page destino = _registerViewModel.EsAdministrador
+                ? new AdminTabbedPage()
+                : new HomePage();
+
+            Application.Current!.Windows[0].Page = new NavigationPage(destino);
+            return;
+        }
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnIrLoginClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+
+    private async void OnTipoCuentaChipClicked(object? sender, EventArgs e)
+    {
+        if (sender is not VisualElement chip)
+        {
+            return;
+        }
+
+        await chip.ScaleToAsync(0.96, 70, Easing.CubicOut);
+        await chip.ScaleToAsync(1.0, 90, Easing.CubicIn);
+    }
+
+    private async void OnActionButtonPressed(object? sender, EventArgs e)
+    {
+        if (sender is not VisualElement view)
+        {
+            return;
+        }
+
+        await view.ScaleToAsync(0.98, 70, Easing.CubicOut);
+    }
+
+    private async void OnActionButtonReleased(object? sender, EventArgs e)
+    {
+        if (sender is not VisualElement view)
+        {
+            return;
+        }
+
+        await view.ScaleToAsync(1.0, 90, Easing.CubicIn);
+    }
+}

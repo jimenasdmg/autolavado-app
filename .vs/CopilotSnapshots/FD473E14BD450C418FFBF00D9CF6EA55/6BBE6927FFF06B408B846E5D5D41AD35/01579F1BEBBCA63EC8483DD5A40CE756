@@ -1,0 +1,178 @@
+﻿using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.Services.Core;
+using AutoLavadoApp.Services.Data;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class MisVehiculosViewModel : INotifyPropertyChanged
+    {
+        private readonly VehiculoService _vehiculoService;
+        private readonly SessionService _sessionService;
+
+        private Vehiculo? _vehiculoSeleccionado;
+        private bool _isBusy;
+        private string _mensajeVacio = "No tienes vehículos registrados.";
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public MisVehiculosViewModel(VehiculoService vehiculoService, SessionService sessionService)
+        {
+            _vehiculoService = vehiculoService;
+            _sessionService = sessionService;
+            Vehiculos = new ObservableCollection<Vehiculo>();
+            CargarCommand = new Command(async () => await CargarVehiculosAsync(), () => !IsBusy);
+            GuardarCommand = new Command<Vehiculo>(async v => await GuardarAsync(v));
+            EliminarCommand = new Command<Vehiculo>(async v => await EliminarAsync(v));
+        }
+
+        public ObservableCollection<Vehiculo> Vehiculos { get; }
+
+        public ICommand CargarCommand { get; }
+        public ICommand GuardarCommand { get; }
+        public ICommand EliminarCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+        public Func<string, string, string, string, Task<bool>>? ConfirmarAccionAsync { get; set; }
+
+        public string MensajeVacio
+        {
+            get => _mensajeVacio;
+            private set => SetProperty(ref _mensajeVacio, value);
+        }
+
+        public bool HasVehiculos => Vehiculos.Count > 0;
+
+        public bool HasNoVehiculos => !HasVehiculos;
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    ((Command)CargarCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public async Task CargarVehiculosAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var uid = _sessionService.ObtenerUid();
+                if (string.IsNullOrWhiteSpace(uid))
+                {
+                    Vehiculos.Clear();
+                    MensajeVacio = "Debes iniciar sesión para ver tus vehículos.";
+                    OnPropertyChanged(nameof(HasVehiculos));
+                    OnPropertyChanged(nameof(HasNoVehiculos));
+                    return;
+                }
+
+                var idToken = await _sessionService.ObtenerTokenAsync();
+                var vehiculos = await _vehiculoService.ObtenerVehiculosPorClienteAsync(uid, idToken);
+
+                Vehiculos.Clear();
+                foreach (var vehiculo in vehiculos)
+                {
+                    Vehiculos.Add(new Vehiculo
+                    {
+                        Id = vehiculo.Id,
+                        UsuarioId = vehiculo.UsuarioId,
+                        ClienteId = vehiculo.ClienteId,
+                        Marca = vehiculo.Marca,
+                        Modelo = vehiculo.Modelo,
+                        Anio = vehiculo.Anio,
+                        Color = vehiculo.Color,
+                        Placas = vehiculo.Placas,
+                        Tipo = vehiculo.Tipo
+                    });
+                }
+
+                MensajeVacio = Vehiculos.Count == 0
+                    ? "Aún no tienes vehículos registrados."
+                    : string.Empty;
+
+                OnPropertyChanged(nameof(HasVehiculos));
+                OnPropertyChanged(nameof(HasNoVehiculos));
+            }
+            catch
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", "No fue posible cargar tus vehículos.", "OK");
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public async Task<bool> GuardarAsync(Vehiculo? vehiculo)
+        {
+            if (vehiculo is null) return false;
+            if (!ValidarPlaca(vehiculo.Placas))
+                throw new InvalidOperationException("Placa inválida.");
+
+            var uid = _sessionService.ObtenerSesionActual()?.Uid;
+            if (string.IsNullOrWhiteSpace(uid)) uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid)) return false;
+
+            vehiculo.UsuarioId = uid;
+            vehiculo.ClienteId = uid;
+
+            var ok = await _vehiculoService.GuardarVehiculoAsync(vehiculo);
+            if (ok) await CargarVehiculosAsync();
+            return ok;
+        }
+
+        public async Task<bool> EliminarAsync(Vehiculo? vehiculo)
+        {
+            if (vehiculo is null || string.IsNullOrWhiteSpace(vehiculo.Id)) return false;
+            var ok = await _vehiculoService.EliminarVehiculoAsync(vehiculo.Id);
+            if (ok) await CargarVehiculosAsync();
+            return ok;
+        }
+
+        public static bool ValidarPlaca(string placa)
+        {
+            if (string.IsNullOrWhiteSpace(placa)) return false;
+            return Regex.IsMatch(placa.Trim().ToUpperInvariant(), "^[A-Z0-9-]{5,10}$");
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+}

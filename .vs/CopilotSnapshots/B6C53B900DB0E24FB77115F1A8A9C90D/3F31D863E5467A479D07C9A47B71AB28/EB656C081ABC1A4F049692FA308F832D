@@ -1,0 +1,88 @@
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp.ViewModels.Cliente;
+
+public class MiCuentaViewModel : INotifyPropertyChanged
+{
+    private readonly SessionService _sessionService;
+    private readonly UsuarioService _usuarioService;
+
+    private string _nombre = string.Empty;
+    private string _correo = string.Empty;
+    private string _rol = "cliente";
+
+    public string Nombre
+    {
+        get => _nombre;
+        set { if (_nombre != value) { _nombre = value; OnPropertyChanged(); } }
+    }
+
+    public string Correo
+    {
+        get => _correo;
+        set { if (_correo != value) { _correo = value; OnPropertyChanged(); } }
+    }
+
+    public string Rol
+    {
+        get => _rol;
+        set
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? "cliente" : value.ToLowerInvariant();
+            if (_rol != normalized)
+            {
+                _rol = normalized;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RolMostrado));
+            }
+        }
+    }
+
+    public string RolMostrado => Rol switch
+    {
+        "admin" => "Administrador",
+        "empleado" => "Empleado",
+        _ => "Cliente"
+    };
+
+    public MiCuentaViewModel(SessionService sessionService, UsuarioService usuarioService)
+    {
+        _sessionService = sessionService;
+        _usuarioService = usuarioService;
+    }
+
+    public async Task CargarAsync()
+    {
+        var sesion = _sessionService.ObtenerSesionActual();
+        if (sesion is null)
+        {
+            Nombre = string.Empty;
+            Correo = string.Empty;
+            Rol = "cliente";
+            return;
+        }
+
+        Nombre = sesion.Nombre;
+        Correo = sesion.Correo;
+        Rol = sesion.Rol;
+
+        if (!string.IsNullOrWhiteSpace(sesion.Uid))
+        {
+            var token = _sessionService.ObtenerToken();
+            var usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(sesion.Uid, token);
+            if (usuario is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(usuario.Nombre)) Nombre = usuario.Nombre;
+                if (!string.IsNullOrWhiteSpace(usuario.Correo)) Correo = usuario.Correo;
+                if (!string.IsNullOrWhiteSpace(usuario.Rol)) Rol = usuario.Rol;
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}

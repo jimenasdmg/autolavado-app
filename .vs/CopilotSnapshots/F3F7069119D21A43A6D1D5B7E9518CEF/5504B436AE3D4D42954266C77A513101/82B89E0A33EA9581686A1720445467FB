@@ -1,0 +1,99 @@
+﻿using AutoLavadoApp.ViewModels;
+using AutoLavadoApp.ViewModels.Admin;
+
+namespace AutoLavadoApp;
+
+public partial class AdminEmpleadosPage : ContentPage
+{
+    private readonly AdminViewModel _viewModel;
+
+    public AdminEmpleadosPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AdminViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AdminViewModel desde DI.");
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarDashboardAsync();
+    }
+
+    private async void OnAgregarEmpleadoClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new CrearEmpleadoPage());
+    }
+
+    private async void OnCambiarRolEmpleadoClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.CommandParameter is not EmpleadoAdminItem empleado)
+        {
+            return;
+        }
+
+        await _viewModel.CambiarRolEmpleadoAsync(empleado);
+    }
+
+    private async void OnCambiarEstadoEmpleadoClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.CommandParameter is not EmpleadoAdminItem empleado)
+        {
+            return;
+        }
+
+        // Confirmar acción con el administrador antes de activar/desactivar
+        var titulo = empleado.Activo ? "Desactivar empleado" : "Activar empleado";
+        var mensaje = empleado.Activo
+            ? $"¿Deseas desactivar a {empleado.NombreCompleto}? El empleado no podrá iniciar sesión mientras esté inactivo."
+            : $"¿Deseas activar a {empleado.NombreCompleto}?";
+
+        var confirmar = await DisplayAlertAsync(titulo, mensaje, empleado.Activo ? "Sí, desactivar" : "Activar", "Cancelar");
+        if (!confirmar) return;
+
+        await _viewModel.CambiarEstadoEmpleadoAsync(empleado);
+        await _viewModel.CargarDashboardAsync();
+    }
+
+    private async void OnEliminarEmpleadoClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.CommandParameter is not EmpleadoAdminItem empleado)
+        {
+            return;
+        }
+
+        // Si el empleado está activo, primero confirmar si se desea desactivarlo
+        if (empleado.Activo)
+        {
+            var desactivar = await DisplayAlertAsync("Confirmar desactivación", $"El empleado {empleado.NombreCompleto} está activo. ¿Deseas desactivarlo antes de eliminarlo?", "Sí, desactivar", "Cancelar");
+            if (!desactivar)
+            {
+                return;
+            }
+
+            await _viewModel.CambiarEstadoEmpleadoAsync(empleado);
+            // refrescar empleado desde VM
+            await _viewModel.CargarDashboardAsync();
+        }
+
+        var confirmar = await DisplayAlertAsync("Eliminar empleado", $"¿Deseas eliminar definitivamente a {empleado.NombreCompleto}? Esta acción no se puede deshacer.", "Eliminar", "Cancelar");
+        if (!confirmar) return;
+
+        await _viewModel.EliminarEmpleadoAsync(empleado);
+        await _viewModel.CargarDashboardAsync();
+    }
+
+    private async void OnMensajeEmpleadoTapped(object sender, EventArgs e)
+    {
+        if (sender is not BindableObject bo || bo.BindingContext is not Models.Empleado emp)
+            return;
+
+        if (string.IsNullOrWhiteSpace(emp.Uid))
+            return;
+
+        await Navigation.PushAsync(new AdminMensajesPage(emp.Uid, emp.Nombre ?? string.Empty));
+    }
+}

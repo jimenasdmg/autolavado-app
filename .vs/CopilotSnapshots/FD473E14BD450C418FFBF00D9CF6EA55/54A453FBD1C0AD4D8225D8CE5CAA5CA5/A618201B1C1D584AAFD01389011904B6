@@ -1,0 +1,24 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class AdminCuentaPage : ContentPage
+{
+    private readonly MiCuentaViewModel _viewModel;
+
+    public AdminCuentaPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<MiCuentaViewModel>()
+            ?? new MiCuentaViewModel();
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarAsync();
+    }
+}

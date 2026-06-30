@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Cliente.EditarPerfilPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="Auto,*" Padding="18,16,18,20" RowSpacing="12">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <Button WidthRequest="42"
+                    HeightRequest="42"
+                    CornerRadius="12"
+                    BackgroundColor="#0B1F4D"
+                    TextColor="White"
+                    FontFamily="FontAwesomeSolid"
+                    FontSize="16"
+                    Text="&#xF060;"
+                    Clicked="OnCancelarClicked" />
+            <Label Grid.Column="1"
+                   Text="Editar perfil"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="#0B1F4D"
+                   VerticalTextAlignment="Center" />
+        </Grid>
+
+        <Border Grid.Row="1"
+                BackgroundColor="White"
+                Stroke="#E7ECF4"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 16"
+                Padding="14">
+            <Border.Shadow>
+                <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+            </Border.Shadow>
+            <VerticalStackLayout Spacing="12">
+                <Label Text="Actualiza tus datos"
+                       FontSize="14"
+                       TextColor="#64748B" />
+
+                <Entry Placeholder="Nombre"
+                       Text="{Binding Nombre}"
+                       TextColor="#0B1F4D"
+                       PlaceholderColor="#64748B"
+                       BackgroundColor="#F8FAFC"
+                       HeightRequest="46" />
+
+                <Entry Placeholder="Apellido paterno"
+                       Text="{Binding ApellidoPaterno}"
+                       TextColor="#0B1F4D"
+                       PlaceholderColor="#64748B"
+                       BackgroundColor="#F8FAFC"
+                       HeightRequest="46" />
+
+                <Entry Placeholder="Apellido materno"
+                       Text="{Binding ApellidoMaterno}"
+                       TextColor="#0B1F4D"
+                       PlaceholderColor="#64748B"
+                       BackgroundColor="#F8FAFC"
+                       HeightRequest="46" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,6,0,0">
+                    <Button Text="Cancelar"
+                            HeightRequest="44"
+                            CornerRadius="12"
+                            BackgroundColor="#F1F5F9"
+                            TextColor="#334155"
+                            Clicked="OnCancelarClicked" />
+
+                    <Button Grid.Column="1"
+                            Text="Guardar"
+                            HeightRequest="44"
+                            CornerRadius="12"
+                            BackgroundColor="#2563EB"
+                            TextColor="White"
+                            Clicked="OnGuardarClicked" />
+                </Grid>
+
+                <Label Text="{Binding ErrorDetalle}"
+                       TextColor="#B91C1C"
+                       FontSize="12"
+                       IsVisible="{Binding TieneError}" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,40 @@
+﻿using AutoLavadoApp.ViewModels;
+
+namespace AutoLavadoApp;
+
+public partial class MisCitasPage : ContentPage
+{
+    private readonly MisCitasViewModel _viewModel;
+
+    public MisCitasPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<MisCitasViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver MisCitasViewModel desde DI.");
+
+        _viewModel.MostrarAlertaAsync = (titulo, mensaje, cancelar) => DisplayAlertAsync(titulo, mensaje, cancelar);
+        _viewModel.ConfirmarAccionAsync = (titulo, mensaje, aceptar, cancelar) => DisplayAlertAsync(titulo, mensaje, aceptar, cancelar);
+        _viewModel.NavegarDetalleCitaAsync = async citaId => await Navigation.PushAsync(new DetalleCitaPage(citaId));
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarCitasAsync();
+        _viewModel.IniciarActualizacionAutomatica();
+    }
+
+    protected override void OnDisappearing()
+    {
+        _viewModel.DetenerActualizacionAutomatica();
+        base.OnDisappearing();
+    }
+
+    private async void OnVolverClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PopAsync();
+    }
+}

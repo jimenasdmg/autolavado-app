@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AdminMensajesPage"
+             BackgroundColor="#F5F7FB">
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16,12,16,12">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="2">
+            <Label Text="Mensajes" FontSize="28" FontAttributes="Bold" TextColor="#0B1F5C"/>
+            <Label Text="Chat interno admin ↔ empleado" FontSize="13" TextColor="#7B849B"/>
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Mensajes}" Margin="0,12,0,12">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="0,4">
+                        <Frame BackgroundColor="#FFFFFF"
+                               CornerRadius="18"
+                               Padding="12,8"
+                               HorizontalOptions="Start"
+                               MaximumWidthRequest="300"
+                               HasShadow="False">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Mensaje}" TextColor="#1D2433" LineBreakMode="WordWrap"/>
+                                <Label Text="{Binding FechaEnvio, StringFormat='{0:HH:mm}'}" FontSize="11" TextColor="#8D96AD" HorizontalOptions="End"/>
+                            </VerticalStackLayout>
+                        </Frame>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <Entry Grid.Column="0"
+                   Text="{Binding TextoMensaje}"
+                   Placeholder="Escribe un mensaje"
+                   BackgroundColor="White"
+                   TextColor="#1D2433"
+                   HeightRequest="48"/>
+            <Button Grid.Column="1"
+                    Text="Enviar"
+                    Clicked="OnEnviarClicked"
+                    BackgroundColor="#0B1F5C"
+                    TextColor="White"
+                    CornerRadius="14"
+                    HeightRequest="48"
+                    Padding="18,0"/>
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,71 @@
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.Services.Data;
+
+namespace AutoLavadoApp.Repositories;
+
+public class CitaRepository : ICitaRepository
+{
+    private readonly CitaService _citaService;
+
+    public CitaRepository(CitaService citaService)
+    {
+        _citaService = citaService;
+    }
+
+    public Task<List<Cita>> ObtenerPorUsuarioAsync(string usuarioId, string? idToken = null)
+        => _citaService.ObtenerCitasPorUsuarioAsync(usuarioId, idToken);
+
+    public Task<List<Cita>> ObtenerParaEmpleadoAsync(string empleadoId, string idToken)
+        => _citaService.ObtenerCitasParaEmpleadoAsync(empleadoId, idToken);
+
+    public Task<List<Cita>> ObtenerTodasAsync(string idToken)
+        => _citaService.ObtenerTodasCitasAsync(idToken);
+
+    public Task<Cita?> ObtenerPorIdAsync(string citaId, string? idToken = null)
+        => _citaService.ObtenerPorIdAsync(citaId, idToken);
+
+    public Task<bool> CancelarAsync(string citaId, string idToken)
+        => _citaService.CancelarCitaAsync(citaId, idToken);
+
+    public Task<bool> ConfirmarAsync(string citaId, string idToken)
+        => _citaService.ConfirmarCitaAsync(citaId, idToken);
+
+    public Task<bool> MarcarPagoAsync(string citaId, bool pagado, string metodoPago, string idToken)
+        => _citaService.MarcarPagoAsync(citaId, pagado, metodoPago, idToken);
+
+    public async Task<bool> ActualizarEstadoAsync(string citaId, string nuevoEstado, string idToken)
+    {
+        var cita = await _citaService.ObtenerPorIdAsync(citaId, idToken);
+        if (cita is null)
+        {
+            return false;
+        }
+
+        if (!CitaTransitionPolicy.EsTransicionValida(cita.Estado, nuevoEstado, cita.EsDomicilio))
+        {
+            return false;
+        }
+
+        return await _citaService.ActualizarEstadoTrackingAsync(citaId, nuevoEstado, idToken);
+    }
+
+    public async Task<bool> AsignarEmpleadoAsync(string citaId, string empleadoId, string empleadoNombre, string idToken)
+    {
+        var cita = await _citaService.ObtenerPorIdAsync(citaId, idToken);
+        if (cita is null)
+        {
+            return false;
+        }
+
+        if (!CitaTransitionPolicy.EsTransicionValida(cita.Estado, EstadosCita.EmpleadoAsignado, cita.EsDomicilio))
+        {
+            return false;
+        }
+
+        return await _citaService.AsignarEmpleadoAsync(citaId, empleadoId, empleadoNombre, idToken);
+    }
+
+    public Task<List<Cita>> ObtenerHistorialPorEmpleadoAsync(string empleadoId, string idToken)
+        => _citaService.ObtenerHistorialPorEmpleadoAsync(empleadoId, idToken);
+}

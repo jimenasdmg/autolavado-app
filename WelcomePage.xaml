@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.Views.Auth.WelcomePage"
+             Title="Bienvenida"
+             BackgroundColor="#F7F9FC">
+
+    <ScrollView>
+        <Grid Padding="24,40,24,28"
+              RowSpacing="20"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+
+            <VerticalStackLayout Grid.Row="0"
+                                 Spacing="8"
+                                 HorizontalOptions="Center">
+                <Border StrokeThickness="0"
+                        BackgroundColor="#ECF2FF"
+                        StrokeShape="RoundRectangle 40"
+                        Padding="18">
+                    <Label Text="&#xF1B9;"
+                           FontFamily="FontAwesomeSolid"
+                           FontSize="30"
+                           TextColor="#1F58C8"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center" />
+                </Border>
+
+                <Label Text="BRIZZO"
+                       FontSize="42"
+                       FontAttributes="Bold"
+                       TextColor="#142347"
+                       HorizontalTextAlignment="Center"
+                       CharacterSpacing="4" />
+
+                <Label Text="AUTOLAVADO"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#4A78D1"
+                       HorizontalTextAlignment="Center"
+                       CharacterSpacing="5" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Grid.Row="1"
+                                 Spacing="8">
+                <Label Text="Bienvenido a BRIZZO"
+                       FontSize="34"
+                       FontAttributes="Bold"
+                       TextColor="#132145"
+                       HorizontalTextAlignment="Center" />
+
+                <Label Text="Cuidamos tu auto como si fuera nuestro."
+                       FontSize="19"
+                       TextColor="#5D6882"
+                       HorizontalTextAlignment="Center" />
+
+                <Label Text="Reserva tu cita fácil, rápido y seguro."
+                       FontSize="19"
+                       TextColor="#5D6882"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Grid.Row="2" Spacing="12">
+                <Border Stroke="Transparent"
+                        StrokeThickness="0"
+                        BackgroundColor="White"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="12">
+                        <Border StrokeThickness="0"
+                                BackgroundColor="#EEF3FF"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10">
+                            <Label Text="&#xF133;"
+                                   FontFamily="FontAwesomeSolid"
+                                   FontSize="22" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="Reserva tu cita"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#1E2A4A" />
+                            <Label Text="Elige el día y la hora que mejor se adapten a ti."
+                                   FontSize="17"
+                                   TextColor="#626D86" />
+                        </VerticalStackLayout>
+
+                        <Label Grid.Column="2"
+                               Text="›"
+                               FontSize="24"
+                               TextColor="#7A85A1"
+                               VerticalTextAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <Border Stroke="Transparent"
+                        StrokeThickness="0"
+                        BackgroundColor="White"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="12">
+                        <Border StrokeThickness="0"
+                                BackgroundColor="#EEF3FF"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10">
+                            <Label Text="&#xF0F9;"
+                                   FontFamily="FontAwesomeSolid"
+                                   FontSize="22" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="Servicios de calidad"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#1E2A4A" />
+                            <Label Text="Productos premium y personal especializado."
+                                   FontSize="17"
+                                   TextColor="#626D86" />
+                        </VerticalStackLayout>
+
+                        <Label Grid.Column="2"
+                               Text="›"
+                               FontSize="24"
+                               TextColor="#7A85A1"
+                               VerticalTextAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <Border Stroke="Transparent"
+                        StrokeThickness="0"
+                        BackgroundColor="White"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="14">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="12">
+                        <Border StrokeThickness="0"
+                                BackgroundColor="#EEF3FF"
+                                StrokeShape="RoundRectangle 12"
+                                Padding="10">
+                            <Label Text="&#xF3ED;"
+                                   FontFamily="FontAwesomeSolid"
+                                   FontSize="22" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="Confianza y seguridad"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#1E2A4A" />
+                            <Label Text="Tu auto está en las mejores manos."
+                                   FontSize="17"
+                                   TextColor="#626D86" />
+                        </VerticalStackLayout>
+
+                        <Label Grid.Column="2"
+                               Text="›"
+                               FontSize="24"
+                               TextColor="#7A85A1"
+                               VerticalTextAlignment="Center" />
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Grid.Row="3" Spacing="12">
+                <Button x:Name="IniciarSesionButton"
+                        Text="Iniciar sesión"
+                        HeightRequest="56"
+                        FontSize="20"
+                        FontAttributes="Bold"
+                        TextColor="White"
+                        BackgroundColor="#1F58C8"
+                        CornerRadius="12" />
+
+                <Button x:Name="CrearCuentaButton"
+                        Text="Crear cuenta"
+                        HeightRequest="56"
+                        FontSize="20"
+                        FontAttributes="Bold"
+                        TextColor="#1F58C8"
+                        BackgroundColor="White"
+                        BorderColor="#1F58C8"
+                        BorderWidth="1.5"
+                        CornerRadius="12" />
+            </VerticalStackLayout>
+
+            <HorizontalStackLayout Grid.Row="4"
+                                   HorizontalOptions="Center"
+                                   Spacing="6">
+                <Label Text="¿Necesitas ayuda?"
+                       FontSize="16"
+                       TextColor="#6D778F" />
+                <Label Text="Contáctanos"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="#2D64CF" />
+            </HorizontalStackLayout>
+
+        </Grid>
+    </ScrollView>
+</ContentPage>

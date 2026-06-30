@@ -1,0 +1,111 @@
+﻿using AutoLavadoApp.Constants;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.Services.Data;
+using AutoLavadoApp.Models;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+
+namespace AutoLavadoApp.ViewModels.Empleado;
+
+public partial class EmpleadoMensajesViewModel
+{
+    private MensajeInternoService? _mensajeService;
+    private CancellationTokenSource? _pollingCts;
+
+    public ObservableCollection<MensajeInterno> Mensajes { get; } = new();
+    public string IdToken { get; set; } = string.Empty;
+    public string AdminUid { get; set; } = string.Empty;
+    public string EmpleadoUid { get; set; } = string.Empty;
+    public string TextoMensaje { get; set; } = string.Empty;
+    public int NoLeidosCount { get; set; }
+    public object? ScrollToLastRequest { get; set; }
+
+    public Func<string, string, string, Task<bool>>? MostrarAlertaAsync { get; set; }
+
+    public EmpleadoMensajesViewModel() { }
+    public EmpleadoMensajesViewModel(MensajeInternoService mensajeService)
+    {
+        _mensajeService = mensajeService;
+    }
+
+    public string ConversacionIdActual =>
+        string.IsNullOrWhiteSpace(AdminUid) || string.IsNullOrWhiteSpace(EmpleadoUid)
+            ? string.Empty
+            : AutoLavadoApp.Services.Data.MensajeService.ConstruirConversacionId(AdminUid, EmpleadoUid);
+
+    public async Task InicializarAsync(string adminUid, string empleadoUid)
+    {
+        AdminUid = adminUid;
+        EmpleadoUid = empleadoUid;
+
+        Debug.WriteLine($"[MENSAJES][EMPLEADO][INIT] admin={AdminUid} emp={EmpleadoUid} conv={ConversacionIdActual}");
+
+        await RefrescarMensajesAsync();
+        IniciarPolling();
+    }
+
+    public async Task RefrescarMensajesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ConversacionIdActual) || string.IsNullOrWhiteSpace(IdToken))
+            return;
+
+        var mensajes = await _mensajeService.ObtenerMensajesAsync(ConversacionIdActual, IdToken);
+
+        Mensajes.Clear();
+        foreach (var m in mensajes)
+            Mensajes.Add(m);
+
+        await _mensajeService.MarcarComoLeidoAsync(ConversacionIdActual, EmpleadoUid, IdToken);
+        NoLeidosCount = await _mensajeService.ContarNoLeidosAsync(EmpleadoUid, IdToken);
+    }
+
+    public async Task<bool> EnviarMensajeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(TextoMensaje) || string.IsNullOrWhiteSpace(IdToken))
+            return false;
+
+        var ok = await _mensajeService.EnviarMensajeAsync(
+            AdminUid,
+            EmpleadoUid,
+            "empleado",
+            AdminUid,
+            TextoMensaje,
+            IdToken);
+
+        Debug.WriteLine($"[MENSAJES][EMPLEADO][SEND] ok={ok} conv={ConversacionIdActual} from={EmpleadoUid} to={AdminUid}");
+
+        if (ok)
+        {
+            TextoMensaje = string.Empty;
+            await RefrescarMensajesAsync();
+        }
+
+        return ok;
+    }
+
+    public void IniciarPolling()
+    {
+        _pollingCts?.Cancel();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await RefrescarMensajesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MENSAJES][EMPLEADO][POLL][ERROR] {ex.Message}");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), token);
+            }
+        }, token);
+    }
+
+    public void DetenerPolling() => _pollingCts?.Cancel();
+}

@@ -1,0 +1,169 @@
+﻿using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using AutoLavadoApp.Models;
+using System.Reflection;
+
+namespace AutoLavadoApp.Services;
+
+public class UsuarioService
+{
+    private const string ColeccionUsuarios = "usuarios";
+    private const string ColeccionClientes = "usuarios";
+
+    public UsuarioService(HttpClient httpClient, string apiKey)
+    {
+    }
+
+    public Task<string> GuardarUsuarioAsync(string uid, string nombre, string apellidoPaterno, string apellidoMaterno, string email, string rol = "cliente", string? idToken = null)
+    {
+        var datos = new Dictionary<string, object>
+        {
+            { "id", uid },
+            { "nombre", nombre },
+            { "apellidoPaterno", apellidoPaterno },
+            { "apellidoMaterno", apellidoMaterno ?? string.Empty },
+            { "email", email },
+            { "rol", string.IsNullOrWhiteSpace(rol) ? "cliente" : rol }
+        };
+
+        return CrearODocumentoAsync(ColeccionUsuarios, uid, datos, idToken);
+    }
+
+    public async Task<Usuario?> ObtenerUsuarioPorIdAsync(string uid, string? idToken = null)
+    {
+        var json = await ObtenerDocumentoAsync(ColeccionUsuarios, uid, idToken);
+        return MapearUsuarioDesdeJson(json, uid);
+    }
+
+    public async Task<Usuario?> ObtenerClientePorIdAsync(string uid, string? idToken = null)
+    {
+        var json = await ObtenerDocumentoAsync(ColeccionClientes, uid, idToken);
+        return MapearUsuarioDesdeJson(json, uid);
+    }
+
+    private static string? LeerString(JsonElement fields, string propiedad)
+    {
+        if (!fields.TryGetProperty(propiedad, out var propiedadElement))
+        {
+            return null;
+        }
+
+        if (!propiedadElement.TryGetProperty("stringValue", out var stringValueElement))
+        {
+            return null;
+        }
+
+        return stringValueElement.GetString();
+    }
+
+    private static Usuario? MapearUsuarioDesdeJson(string? json, string uid)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(json);
+        if (!document.RootElement.TryGetProperty("fields", out var fields))
+        {
+            return null;
+        }
+
+        return new Usuario
+        {
+            Id = LeerString(fields, "id") ?? uid,
+            Nombre = LeerString(fields, "nombre") ?? string.Empty,
+            ApellidoPaterno = LeerString(fields, "apellidoPaterno") ?? string.Empty,
+            ApellidoMaterno = LeerString(fields, "apellidoMaterno") ?? string.Empty,
+            Email = LeerString(fields, "email") ?? string.Empty,
+            Rol = LeerString(fields, "rol") ?? "cliente"
+        };
+    }
+
+    public async Task<string> ObtenerRolPorUidAsync(string uid)
+    {
+        if (string.IsNullOrWhiteSpace(uid)) return "cliente";
+
+        var usuario = await ObtenerUsuarioPorUidGenericoAsync(uid);
+        if (usuario is null) return "cliente";
+
+        var rol = usuario.GetType().GetProperty("Rol")?.GetValue(usuario)?.ToString();
+        return string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant();
+    }
+
+    public async Task<object?> ObtenerUsuarioPorUidGenericoAsync(string uid)
+    {
+        var method = GetType().GetMethod("ObtenerPorUidAsync")
+                     ?? GetType().GetMethod("ObtenerUsuarioPorUidAsync")
+                     ?? GetType().GetMethod("GetByUidAsync")
+                     ?? GetType().GetMethod("GetUsuarioByUidAsync");
+
+        if (method is null) return null;
+
+        var result = method.Invoke(this, new object[] { uid });
+        if (result is Task task)
+        {
+            await task;
+            return task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)?.GetValue(task);
+        }
+
+        return result;
+    }
+
+    public async Task<bool> GuardarUsuarioConRolAsync(string uid, string correo, string nombre, string rol)
+    {
+        rol = string.IsNullOrWhiteSpace(rol) ? "cliente" : rol.ToLowerInvariant();
+
+        // Intenta métodos ya existentes en el servicio para no romper integración Firestore REST actual.
+        var method = GetType().GetMethod("GuardarUsuarioAsync")
+                     ?? GetType().GetMethod("CrearUsuarioAsync")
+                     ?? GetType().GetMethod("UpsertUsuarioAsync");
+
+        if (method is null) return false;
+
+        var ps = method.GetParameters();
+
+        object? result;
+        if (ps.Length == 1)
+        {
+            // Firma con modelo Usuario
+            var usuarioType = Type.GetType("AutoLavadoApp.Models.Usuario, AutoLavadoApp");
+            if (usuarioType is null) return false;
+
+            var usuario = Activator.CreateInstance(usuarioType);
+            usuarioType.GetProperty("Uid")?.SetValue(usuario, uid);
+            usuarioType.GetProperty("Correo")?.SetValue(usuario, correo);
+            usuarioType.GetProperty("Nombre")?.SetValue(usuario, nombre);
+            usuarioType.GetProperty("Rol")?.SetValue(usuario, rol);
+
+            result = method.Invoke(this, new[] { usuario });
+        }
+        else
+        {
+            var args = new List<object?>();
+            foreach (var p in ps)
+            {
+                var n = p.Name?.ToLowerInvariant() ?? string.Empty;
+                if (n.Contains("uid")) args.Add(uid);
+                else if (n.Contains("correo") || n.Contains("email")) args.Add(correo);
+                else if (n.Contains("nombre")) args.Add(nombre);
+                else if (n.Contains("rol")) args.Add(rol);
+                else args.Add(p.HasDefaultValue ? p.DefaultValue : null);
+            }
+
+            result = method.Invoke(this, args.ToArray());
+        }
+
+        if (result is Task<bool> tb) return await tb;
+        if (result is Task t)
+        {
+            await t;
+            var value = t.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)?.GetValue(t);
+            return value as bool? ?? true;
+        }
+
+        return result as bool? ?? true;
+    }
+}

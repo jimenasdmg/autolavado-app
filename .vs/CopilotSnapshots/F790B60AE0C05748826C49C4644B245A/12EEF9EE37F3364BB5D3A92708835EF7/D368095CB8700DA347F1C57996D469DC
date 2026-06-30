@@ -1,0 +1,227 @@
+﻿using System;
+using System.Threading;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using AutoLavadoApp.Services;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class MisCitasViewModel : INotifyPropertyChanged
+    {
+        private readonly CitaService _citaService;
+        private readonly SessionService _sessionService;
+
+        private bool _isBusy;
+        private string _mensajeVacio = "No tienes citas registradas.";
+        private CancellationTokenSource? _refreshCancellationTokenSource;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public MisCitasViewModel(CitaService citaService, SessionService sessionService)
+        {
+            _citaService = citaService;
+            _sessionService = sessionService;
+            Citas = new ObservableCollection<MisCitaItem>();
+            CargarCommand = new Command(async () => await CargarCitasAsync(), () => !IsBusy);
+        }
+
+        public ObservableCollection<MisCitaItem> Citas { get; }
+
+        public ICommand CargarCommand { get; }
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+        public string MensajeVacio
+        {
+            get => _mensajeVacio;
+            private set => SetProperty(ref _mensajeVacio, value);
+        }
+
+        public bool HasCitas => Citas.Count > 0;
+
+        public bool HasNoCitas => !HasCitas;
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                {
+                    ((Command)CargarCommand).ChangeCanExecute();
+                }
+            }
+        }
+
+        public void IniciarActualizacionAutomatica()
+        {
+            DetenerActualizacionAutomatica();
+            _refreshCancellationTokenSource = new CancellationTokenSource();
+            _ = EjecutarLoopActualizacionAsync(_refreshCancellationTokenSource.Token);
+        }
+
+        public void DetenerActualizacionAutomatica()
+        {
+            if (_refreshCancellationTokenSource == null)
+            {
+                return;
+            }
+
+            _refreshCancellationTokenSource.Cancel();
+            _refreshCancellationTokenSource.Dispose();
+            _refreshCancellationTokenSource = null;
+        }
+
+        private async Task EjecutarLoopActualizacionAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await CargarCitasAsync();
+
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(8), cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+
+        public async Task CargarCitasAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            try
+            {
+                IsBusy = true;
+
+                var uid = _sessionService.ObtenerUid();
+                if (string.IsNullOrWhiteSpace(uid))
+                {
+                    Citas.Clear();
+                    MensajeVacio = "Debes iniciar sesión para ver tus citas.";
+                    OnPropertyChanged(nameof(HasCitas));
+                    OnPropertyChanged(nameof(HasNoCitas));
+                    return;
+                }
+
+                var citas = await _citaService.ObtenerCitasPorClienteAsync(uid);
+
+                Citas.Clear();
+                foreach (var cita in citas)
+                {
+                    Citas.Add(new MisCitaItem
+                    {
+                        Id = cita.Id,
+                        Servicio = cita.Servicio,
+                        Fecha = cita.Fecha,
+                        Hora = cita.Hora,
+                        Estado = cita.Estado,
+                        Vehiculo = cita.Vehiculo,
+                        Placas = cita.Placas,
+                        CancelarCommand = new Command(async () => await CancelarCitaAsync(cita.Id), () => cita.Estado == "Pendiente")
+                    });
+                }
+
+                MensajeVacio = Citas.Count == 0
+                    ? "Aún no tienes citas agendadas."
+                    : string.Empty;
+
+                OnPropertyChanged(nameof(HasCitas));
+                OnPropertyChanged(nameof(HasNoCitas));
+            }
+            catch
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", "No fue posible cargar tus citas.", "OK");
+                }
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task CancelarCitaAsync(string citaId)
+        {
+            try
+            {
+                await _citaService.CancelarCitaAsync(citaId);
+
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Cita cancelada", "Tu cita fue cancelada correctamente.", "OK");
+                }
+
+                await CargarCitasAsync();
+            }
+            catch
+            {
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Error", "No fue posible cancelar la cita.", "OK");
+                }
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+
+    public class MisCitaItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string Vehiculo { get; set; } = string.Empty;
+        public string Placas { get; set; } = string.Empty;
+        public ICommand CancelarCommand { get; set; } = new Command(() => { });
+
+        public string EstadoColor => Estado switch
+        {
+            "Pendiente" => "#F59E0B",
+            "Confirmada" => "#2563EB",
+            "En proceso" => "#7C3AED",
+            "Finalizada" => "#16A34A",
+            "Cancelada" => "#DC2626",
+            _ => "#64748B"
+        };
+
+        public string EstadoFondoColor => Estado switch
+        {
+            "Pendiente" => "#FEF3C7",
+            "Confirmada" => "#DBEAFE",
+            "En proceso" => "#EDE9FE",
+            "Finalizada" => "#DCFCE7",
+            "Cancelada" => "#FEE2E2",
+            _ => "#E2E8F0"
+        };
+
+        public bool PuedeCancelar => Estado == "Pendiente";
+    }
+}

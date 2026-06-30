@@ -1,0 +1,772 @@
+﻿using AutoLavadoApp.Services.Core;
+using AutoLavadoApp.Services.Data;
+using AutoLavadoApp.Repositories.Interfaces;
+using AutoLavadoApp.Models;
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Text.Json;
+
+namespace AutoLavadoApp.ViewModels
+{
+    public class EmpleadoViewModel : INotifyPropertyChanged
+    {
+        private readonly AutoLavadoApp.Services.Core.SessionService _sessionService;
+        private readonly ICitaRepository _citaRepository;
+        // Observaciones functionality removed
+        private readonly AutoLavadoApp.Services.Data.UsuarioService _usuarioService;
+        private readonly AutoLavadoApp.Services.Data.VehiculoService _vehiculoService;
+        private readonly IMensajeRepository _mensajeRepository;
+        private readonly AutoLavadoApp.Services.Data.NotificacionService _notificacionService;
+        private string _nombreEmpleado = "Empleado";
+        private int _citasHoy;
+        private int _citasPendientes;
+        private int _citasEnProceso;
+        private int _citasFinalizadas;
+        private int _mensajesNoLeidos;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public EmpleadoViewModel(
+            SessionService sessionService,
+            ICitaRepository citaRepository,
+            UsuarioService usuarioService,
+            VehiculoService vehiculoService,
+            IMensajeRepository mensajeRepository,
+            NotificacionService notificacionService)
+        {
+            _sessionService = sessionService;
+            _citaRepository = citaRepository;
+            _usuarioService = usuarioService;
+            _vehiculoService = vehiculoService;
+            _mensajeRepository = mensajeRepository;
+            _notificacionService = notificacionService;
+            CitasAsignadas = new ObservableCollection<EmpleadoCitaItem>();
+            TrabajosDisponibles = new ObservableCollection<EmpleadoCitaItem>();
+            CitasAceptadas = new ObservableCollection<EmpleadoCitaItem>();
+            HistorialCitas = new ObservableCollection<EmpleadoCitaItem>();
+        }
+
+        private async Task<string> ObtenerUidDesdeTokenAsync()
+        {
+            var token = await _sessionService.ObtenerTokenAsync();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return _sessionService.ObtenerUid();
+            }
+
+            try
+            {
+                var parts = token.Split('.');
+                if (parts.Length >= 2)
+                {
+                    var payload = parts[1];
+                    payload = payload.Replace('-', '+').Replace('_', '/');
+                    switch (payload.Length % 4)
+                    {
+                        case 2: payload += "=="; break;
+                        case 3: payload += "="; break;
+                    }
+
+                    var bytes = Convert.FromBase64String(payload);
+                    var json = System.Text.Encoding.UTF8.GetString(bytes);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("sub", out var sub))
+                    {
+                        return sub.GetString() ?? _sessionService.ObtenerUid();
+                    }
+                    if (doc.RootElement.TryGetProperty("user_id", out var uid))
+                    {
+                        return uid.GetString() ?? _sessionService.ObtenerUid();
+                    }
+                }
+            }
+            catch { }
+
+            return _sessionService.ObtenerUid();
+        }
+
+        public string NombreEmpleado
+        {
+            get => _nombreEmpleado;
+            private set => SetProperty(ref _nombreEmpleado, value);
+        }
+
+        public int CitasHoy
+        {
+            get => _citasHoy;
+            private set => SetProperty(ref _citasHoy, value);
+        }
+
+        public int CitasPendientes
+        {
+            get => _citasPendientes;
+            private set => SetProperty(ref _citasPendientes, value);
+        }
+
+        public int CitasEnProceso
+        {
+            get => _citasEnProceso;
+            private set => SetProperty(ref _citasEnProceso, value);
+        }
+
+        public int CitasFinalizadas
+        {
+            get => _citasFinalizadas;
+            private set => SetProperty(ref _citasFinalizadas, value);
+        }
+
+        public ObservableCollection<EmpleadoCitaItem> CitasAsignadas { get; }
+        public ObservableCollection<EmpleadoCitaItem> TrabajosDisponibles { get; }
+        public ObservableCollection<EmpleadoCitaItem> CitasAceptadas { get; }
+        public ObservableCollection<EmpleadoCitaItem> HistorialCitas { get; }
+
+        public int MensajesNoLeidos
+        {
+            get => _mensajesNoLeidos;
+            private set
+            {
+                if (SetProperty(ref _mensajesNoLeidos, value))
+                {
+                    OnPropertyChanged(nameof(MensajesNoLeidosTexto));
+                    OnPropertyChanged(nameof(TieneMensajesNoLeidos));
+                }
+            }
+        }
+
+        public bool TieneMensajesNoLeidos => MensajesNoLeidos > 0;
+        public string MensajesNoLeidosTexto => MensajesNoLeidos > 9 ? "9+" : MensajesNoLeidos.ToString();
+
+        public Func<string, string, string, Task>? MostrarAlertaAsync { get; set; }
+
+        public async Task CargarDatosAsync()
+        {
+            await CargarNombreEmpleadoAsync();
+
+            var idToken = _sessionService.ObtenerToken();
+            if (SessionService.TokenExpirado(idToken))
+            {
+                CitasAsignadas.Clear();
+                TrabajosDisponibles.Clear();
+                CitasAceptadas.Clear();
+                HistorialCitas.Clear();
+                CitasHoy = 0;
+                CitasPendientes = 0;
+                CitasEnProceso = 0;
+                CitasFinalizadas = 0;
+                MensajesNoLeidos = 0;
+                return;
+            }
+
+            var uid = _sessionService.ObtenerUid();
+            // Si hay un uid de empleado, pedir citas relevantes para ese empleado (pendientes + asignadas)
+            var citas = string.IsNullOrWhiteSpace(uid)
+                ? await _citaRepository.ObtenerTodasAsync(idToken)
+                : await _citaRepository.ObtenerParaEmpleadoAsync(uid, idToken);
+            var mensajesNoLeidos = string.IsNullOrWhiteSpace(uid)
+                ? 0
+                : await _mensajeRepository.ContarNoLeidosAsync(uid, idToken);
+            var notificacionesNoLeidas = string.IsNullOrWhiteSpace(uid)
+                ? 0
+                : await _notificacionService.ObtenerNoLeidasCountAsync(uid, idToken);
+            MensajesNoLeidos = mensajesNoLeidos + notificacionesNoLeidas;
+
+            CitasAsignadas.Clear();
+            TrabajosDisponibles.Clear();
+            CitasAceptadas.Clear();
+            HistorialCitas.Clear();
+
+            foreach (var cita in citas)
+            {
+                string nombreCliente = "Cliente";
+                string vehiculoInfo = "Vehículo";
+
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(cita.UsuarioId))
+                    {
+                        var usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(cita.UsuarioId, idToken);
+                        if (usuario != null && !string.IsNullOrWhiteSpace(usuario.Nombre))
+                        {
+                            nombreCliente = $"{usuario.Nombre} {usuario.ApellidoPaterno}".Trim();
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(cita.VehiculoId))
+                    {
+                        var vehiculosList = await _vehiculoService.ObtenerVehiculosPorUsuarioAsync(cita.UsuarioId, idToken);
+                        var vehiculo = vehiculosList?.FirstOrDefault(v => v.Id == cita.VehiculoId);
+                        if (vehiculo != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(vehiculo.Marca) && !string.IsNullOrWhiteSpace(vehiculo.Modelo))
+                            {
+                                vehiculoInfo = $"{vehiculo.Marca} {vehiculo.Modelo}";
+                            }
+                            else if (!string.IsNullOrWhiteSpace(vehiculo.Placas))
+                            {
+                                vehiculoInfo = vehiculo.Placas;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                var item = CrearCita(
+                    cita.Id,
+                    string.IsNullOrWhiteSpace(cita.ClienteId) ? cita.UsuarioId : cita.ClienteId,
+                    nombreCliente,
+                    vehiculoInfo,
+                    cita.Servicio,
+                    cita.Fecha,
+                    cita.Hora,
+                    cita.Estado ?? string.Empty,
+                    cita.Modalidad,
+                    cita.Direccion,
+                    cita.EmpleadoId);
+                // asignar propiedad Pagado si está presente en el modelo fuente
+                item.Pagado = cita.Pagado;
+
+                var estado = (cita.Estado ?? string.Empty).Trim().ToLowerInvariant();
+
+                if (string.IsNullOrWhiteSpace(cita.EmpleadoId)
+                    && (string.Equals(estado, EstadosCita.Pendiente, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(estado, EstadosCita.Aceptada, StringComparison.OrdinalIgnoreCase)))
+                {
+                    TrabajosDisponibles.Add(item);
+                    continue;
+                }
+
+                if (string.Equals(cita.EmpleadoId, uid, StringComparison.Ordinal))
+                {
+                    if (string.Equals(estado, EstadosCita.Finalizada, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(estado, EstadosCita.Cancelada, StringComparison.OrdinalIgnoreCase))
+                    {
+                        HistorialCitas.Add(item);
+                        continue;
+                    }
+
+                    CitasAsignadas.Add(item);
+
+                    if (string.Equals(estado, EstadosCita.Aceptada, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(estado, EstadosCita.EmpleadoAsignado, StringComparison.OrdinalIgnoreCase))
+                    {
+                        CitasAceptadas.Add(item);
+                    }
+                }
+            }
+
+            ActualizarResumen();
+        }
+
+        private async Task CargarNombreEmpleadoAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                NombreEmpleado = "Empleado";
+                return;
+            }
+
+            var token = _sessionService.ObtenerToken();
+            Usuario? usuario = null;
+
+            try
+            {
+                usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(uid, token);
+            }
+            catch
+            {
+            }
+
+            if (usuario == null || string.IsNullOrWhiteSpace(usuario.Nombre))
+            {
+                if (!string.IsNullOrWhiteSpace(uid) && !SessionService.TokenExpirado(token))
+                {
+                    try
+                    {
+                        await _usuarioService.GuardarUsuarioAsync(new Usuario
+                        {
+                            Uid = uid,
+                            Nombre = string.IsNullOrWhiteSpace(_sessionService.ObtenerNombre()) ? "Empleado" : _sessionService.ObtenerNombre(),
+                            ApellidoPaterno = string.Empty,
+                            ApellidoMaterno = string.Empty,
+                            Correo = _sessionService.ObtenerEmail(),
+                            Rol = AutoLavadoApp.Constants.Roles.Empleado,
+                            Activo = true,
+                            IdToken = token
+                        });
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                var email = _sessionService.ObtenerEmail();
+                NombreEmpleado = string.IsNullOrWhiteSpace(email) ? "Empleado" : email.Split('@')[0];
+                return;
+            }
+
+            var nombre = $"{usuario.Nombre} {usuario.ApellidoPaterno}".Trim();
+            NombreEmpleado = string.IsNullOrWhiteSpace(nombre) ? "Empleado" : nombre;
+        }
+
+        private EmpleadoCitaItem CrearCita(
+            string id,
+            string usuarioId,
+            string cliente,
+            string vehiculo,
+            string servicio,
+            DateTime fecha,
+            string hora,
+            string estado,
+            string tipoServicio,
+            string direccion,
+            string empleadoId)
+        {
+            var cita = new EmpleadoCitaItem
+            {
+                Id = id,
+                UsuarioId = usuarioId,
+                NombreCliente = cliente,
+                Vehiculo = vehiculo,
+                Servicio = servicio,
+                Fecha = fecha,
+                Hora = hora,
+                Estado = (estado ?? string.Empty).ToLowerInvariant(),
+                TipoServicio = tipoServicio,
+                Direccion = direccion,
+                EmpleadoId = empleadoId
+            };
+
+            cita.TomarTrabajoCommand = new Command(async () =>
+            {
+                var empleadoUid = await ObtenerUidDesdeTokenAsync();
+                var empleadoNombre = await ObtenerNombreEmpleadoActualAsync();
+                await CambiarEstadoCitaAsync(
+                    cita,
+                    EstadosCita.EmpleadoAsignado,
+                    async () =>
+                    {
+                        await EjecutarOperacionConTokenAsync(token => _citaRepository.AsignarEmpleadoAsync(cita.Id, empleadoUid, empleadoNombre, token));
+                        cita.EmpleadoId = empleadoUid;
+                        TrabajosDisponibles.Remove(cita);
+                        if (!CitasAsignadas.Any(x => x.Id == cita.Id))
+                        {
+                            CitasAsignadas.Insert(0, cita);
+                        }
+                    },
+                    "Trabajo tomado correctamente.",
+                    "empleado_asignado",
+                    "Tu cita fue asignada a un empleado.");
+            }, () => cita.PuedeTomarTrabajo);
+
+            cita.ConfirmarCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.EmpleadoAsignado, () => EjecutarOperacionConTokenAsync(token => _citaRepository.ConfirmarAsync(cita.Id, token)), "Cita confirmada correctamente.", "empleado_asignado", "Tu cita fue asignada a un empleado.");
+            }, () => cita.PuedeConfirmar);
+
+            cita.EnCaminoCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.EnCamino, () => EjecutarOperacionConTokenAsync(token => _citaRepository.ActualizarEstadoAsync(cita.Id, EstadosCita.EnCamino, token)), "Estado actualizado a En camino.", "empleado_en_camino", "Tu empleado va en camino.");
+            }, () => cita.PuedeMarcarEnCamino);
+
+            cita.RecogidoCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.VehiculoRecogido, () => EjecutarOperacionConTokenAsync(token => _citaRepository.ActualizarEstadoAsync(cita.Id, EstadosCita.VehiculoRecogido, token)), "Vehículo marcado como recogido.", "vehiculo_recogido", "Tu vehículo fue recogido.");
+            }, () => cita.PuedeMarcarRecogido);
+
+            cita.IniciarServicioCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.Lavando, () => EjecutarOperacionConTokenAsync(token => _citaRepository.ActualizarEstadoAsync(cita.Id, EstadosCita.Lavando, token)), "Lavado iniciado.", "lavado_iniciado", "El lavado de tu vehículo inició.");
+            }, () => cita.PuedeIniciar);
+
+            cita.FinalizarCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.Finalizada, () => EjecutarOperacionConTokenAsync(token => _citaRepository.ActualizarEstadoAsync(cita.Id, EstadosCita.Finalizada, token)), "La cita fue marcada como finalizada.", "servicio_finalizado", "Tu servicio fue finalizado.");
+            }, () => cita.PuedeFinalizar);
+
+            cita.EntregarCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.Entregado, () => EjecutarOperacionConTokenAsync(token => _citaRepository.ActualizarEstadoAsync(cita.Id, EstadosCita.Entregado, token)), "Servicio entregado.", "servicio_entregado", "Tu vehículo fue entregado.");
+            }, () => cita.PuedeEntregar);
+
+            cita.CancelarCommand = new Command(async () =>
+            {
+                await CambiarEstadoCitaAsync(cita, EstadosCita.Cancelada, () => EjecutarOperacionConTokenAsync(token => _citaRepository.CancelarAsync(cita.Id, token)), "La cita fue cancelada.", "servicio_cancelado", "Tu cita fue cancelada.");
+            }, () => cita.PuedeCancelar);
+
+            cita.AgregarObservacionCommand = new Command(async () =>
+            {
+                if (SolicitarObservacionAsync == null)
+                {
+                    return;
+                }
+
+                var observacion = await SolicitarObservacionAsync(cita.NombreCliente);
+                if (string.IsNullOrWhiteSpace(observacion))
+                {
+                    return;
+                }
+
+                cita.Observacion = observacion.Trim();
+                var empleadoId = _sessionService.ObtenerUid();
+                await _observacionService.GuardarObservacionAsync(
+                    cita.Id,
+                    string.IsNullOrWhiteSpace(empleadoId) ? "empleado" : empleadoId,
+                    cita.Observacion,
+                    DateTime.Now);
+
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Observación guardada", "La observación fue registrada correctamente.", "OK");
+                }
+            });
+
+            return cita;
+        }
+
+        private async Task CambiarEstadoCitaAsync(
+            EmpleadoCitaItem cita,
+            string nuevoEstado,
+            Func<Task> accionPersistencia,
+            string mensajeExito,
+            string tipoNotificacion,
+            string mensajeCliente)
+        {
+            try
+            {
+                await accionPersistencia();
+                cita.Estado = nuevoEstado;
+                ActualizarResumen();
+
+                var idToken = _sessionService.ObtenerToken();
+                if (!string.IsNullOrWhiteSpace(cita.UsuarioId) && !SessionService.TokenExpirado(idToken))
+                {
+                    await _notificacionService.CrearAsync(new Notificacion
+                    {
+                        UsuarioId = cita.UsuarioId,
+                        CitaId = cita.Id,
+                        Titulo = "Estado de tu servicio",
+                        Mensaje = mensajeCliente,
+                        Tipo = tipoNotificacion,
+                        Fecha = DateTime.UtcNow,
+                        Leida = false
+                    }, idToken);
+                }
+
+                if (MostrarAlertaAsync != null)
+                {
+                    await MostrarAlertaAsync("Estado actualizado", mensajeExito, "OK");
+                }
+                // Refrescar datos desde servidor para asegurar que las colecciones reflejen el estado real
+                try
+                {
+                    await CargarDatosAsync();
+                }
+                catch { }
+            }
+            catch (Exception ex)
+            {
+                // Registrar excepción para diagnóstico
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine($"[CITAS][ERROR] id={cita.Id} ex={ex}");
+                }
+                catch
+                {
+                }
+
+                // Si es un error de permisos, mostrar mensaje específico
+                var permiso = ex is AutoLavadoApp.Services.FirebaseServiceException fex && fex.ErrorCode == "PERMISSION_DENIED";
+                if (MostrarAlertaAsync != null)
+                {
+                    var msg = permiso
+                        ? "No tienes permisos para realizar esta operación. Se actualizarán los datos desde el servidor."
+                        : $"No fue posible actualizar el estado de la cita. {ex.Message}";
+                    await MostrarAlertaAsync("Error", msg, "OK");
+                }
+
+                // Refrescar datos desde servidor para sincronizar UI
+                try
+                {
+                    await CargarDatosAsync();
+                }
+                catch { }
+            }
+        }
+
+        private async Task EjecutarOperacionConTokenAsync(Func<string, Task<bool>> operacion)
+        {
+            var idToken = await _sessionService.ObtenerTokenAsync();
+            // Diagnóstico: mostrar uid de sesión y extraer 'sub' del idToken (si es JWT) para comparar
+            try
+            {
+                var sessionUid = _sessionService.ObtenerUid();
+                System.Diagnostics.Debug.WriteLine($"[CITAS][DIAG] sessionUid: {sessionUid}");
+                if (!string.IsNullOrWhiteSpace(idToken))
+                {
+                    try
+                    {
+                        var parts = idToken.Split('.');
+                        if (parts.Length >= 2)
+                        {
+                            string payload = parts[1];
+                            // base64 url decode
+                            payload = payload.Replace('-', '+').Replace('_', '/');
+                            switch (payload.Length % 4)
+                            {
+                                case 2: payload += "=="; break;
+                                case 3: payload += "="; break;
+                            }
+                            var bytes = Convert.FromBase64String(payload);
+                            var json = System.Text.Encoding.UTF8.GetString(bytes);
+                            System.Diagnostics.Debug.WriteLine($"[CITAS][DIAG] token payload: {json}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[CITAS][DIAG] token not JWT or unexpected format");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[CITAS][DIAG] error decoding token: {ex.Message}");
+                    }
+                }
+            }
+            catch { }
+
+            if (SessionService.TokenExpirado(idToken))
+            {
+                throw new UnauthorizedAccessException("El token de sesión expiró. Inicia sesión nuevamente.");
+            }
+
+            var ok = await operacion(idToken);
+            if (!ok)
+            {
+                throw new InvalidOperationException("Operación rechazada por transición inválida o reglas de persistencia.");
+            }
+        }
+
+        private async Task<string> ObtenerNombreEmpleadoActualAsync()
+        {
+            var uid = _sessionService.ObtenerUid();
+            var token = _sessionService.ObtenerToken();
+            if (string.IsNullOrWhiteSpace(uid) || SessionService.TokenExpirado(token))
+            {
+                return "Empleado";
+            }
+
+            try
+            {
+                var usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(uid, token);
+                if (usuario is not null)
+                {
+                    var nombre = $"{usuario.Nombre} {usuario.ApellidoPaterno}".Trim();
+                    if (!string.IsNullOrWhiteSpace(nombre))
+                    {
+                        return nombre;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return NombreEmpleado;
+        }
+
+        private void ActualizarResumen()
+        {
+            CitasHoy = CitasAsignadas.Count;
+            CitasPendientes = 0;
+            CitasEnProceso = 0;
+            CitasFinalizadas = 0;
+
+            foreach (var cita in CitasAsignadas)
+            {
+                if (string.Equals(cita.Estado, EstadosCita.Pendiente, StringComparison.OrdinalIgnoreCase))
+                {
+                    CitasPendientes++;
+                }
+                else if (string.Equals(cita.Estado, EstadosCita.Lavando, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(cita.Estado, EstadosCita.EnCamino, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(cita.Estado, EstadosCita.VehiculoRecogido, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(cita.Estado, EstadosCita.EmpleadoAsignado, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(cita.Estado, EstadosCita.Aceptada, StringComparison.OrdinalIgnoreCase))
+                {
+                    CitasEnProceso++;
+                }
+                else if (string.Equals(cita.Estado, EstadosCita.Finalizada, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(cita.Estado, EstadosCita.Entregado, StringComparison.OrdinalIgnoreCase))
+                {
+                    CitasFinalizadas++;
+                }
+
+                cita.RefrescarEstadoVisual();
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (Equals(storage, value))
+            {
+                return false;
+            }
+
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
+    }
+
+    public class EmpleadoCitaItem : INotifyPropertyChanged
+    {
+        private string _estado = EstadosCita.Pendiente;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public string UsuarioId { get; set; } = string.Empty;
+        public string NombreCliente { get; set; } = string.Empty;
+        public string Vehiculo { get; set; } = string.Empty;
+        public string Servicio { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Hora { get; set; } = string.Empty;
+        public string TipoServicio { get; set; } = TiposServicioCita.Sucursal;
+        public string Direccion { get; set; } = string.Empty;
+        public string EmpleadoId { get; set; } = string.Empty;
+
+        public string Id { get; set; } = string.Empty;
+        public bool Pagado { get; set; }
+
+        public string Estado
+        {
+            get => _estado;
+            set
+            {
+                if (_estado == value)
+                {
+                    return;
+                }
+
+                _estado = value;
+                RefrescarEstadoVisual();
+            }
+        }
+
+        // Observacion removed
+        public bool TieneObservacion => false;
+        public bool EsDomicilio => string.Equals(TipoServicio, TiposServicioCita.Domicilio, StringComparison.OrdinalIgnoreCase);
+        public string ModalidadTexto => EsDomicilio ? "Domicilio" : "Sucursal";
+
+        public string EstadoTexto => Estado switch
+        {
+            EstadosCita.Pendiente => "Pendiente",
+            EstadosCita.Aceptada => "Aceptada",
+            EstadosCita.EmpleadoAsignado => "Empleado asignado",
+            EstadosCita.EnCamino => "En camino",
+            EstadosCita.VehiculoRecogido => "Vehículo recogido",
+            EstadosCita.Lavando => "Lavando",
+            EstadosCita.Finalizada => "Finalizada",
+            EstadosCita.Entregado => "Entregado",
+            EstadosCita.Cancelada => "Cancelada",
+            _ => Estado
+        };
+
+        public string EstadoColor => Estado switch
+        {
+            EstadosCita.Pendiente => "#F59E0B",
+            EstadosCita.Aceptada => "#2563EB",
+            EstadosCita.EmpleadoAsignado => "#2563EB",
+            EstadosCita.EnCamino => "#7C3AED",
+            EstadosCita.VehiculoRecogido => "#4F46E5",
+            EstadosCita.Lavando => "#7C3AED",
+            EstadosCita.Finalizada => "#16A34A",
+            EstadosCita.Entregado => "#15803D",
+            EstadosCita.Cancelada => "#B91C1C",
+            _ => "#64748B"
+        };
+
+        public string EstadoBackgroundColor => Estado switch
+        {
+            EstadosCita.Pendiente => "#FEF3C7",
+            EstadosCita.Aceptada => "#DBEAFE",
+            EstadosCita.EmpleadoAsignado => "#DBEAFE",
+            EstadosCita.EnCamino => "#EDE9FE",
+            EstadosCita.VehiculoRecogido => "#EEF2FF",
+            EstadosCita.Lavando => "#EDE9FE",
+            EstadosCita.Finalizada => "#DCFCE7",
+            EstadosCita.Entregado => "#DCFCE7",
+            EstadosCita.Cancelada => "#FEE2E2",
+            _ => "#E2E8F0"
+        };
+
+        public bool PuedeTomarTrabajo => string.Equals(Estado, EstadosCita.Pendiente, StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(EmpleadoId);
+        public bool PuedeConfirmar => string.Equals(Estado, EstadosCita.Aceptada, StringComparison.OrdinalIgnoreCase);
+        public bool PuedeMarcarEnCamino => string.Equals(Estado, EstadosCita.EmpleadoAsignado, StringComparison.OrdinalIgnoreCase) && EsDomicilio;
+        public bool PuedeMarcarRecogido => string.Equals(Estado, EstadosCita.EnCamino, StringComparison.OrdinalIgnoreCase) && EsDomicilio;
+        public bool PuedeIniciar => string.Equals(Estado, EstadosCita.EmpleadoAsignado, StringComparison.OrdinalIgnoreCase) || string.Equals(Estado, EstadosCita.VehiculoRecogido, StringComparison.OrdinalIgnoreCase);
+        public bool PuedeFinalizar => string.Equals(Estado, EstadosCita.Lavando, StringComparison.OrdinalIgnoreCase);
+        public bool PuedeEntregar => string.Equals(Estado, EstadosCita.Finalizada, StringComparison.OrdinalIgnoreCase);
+        public bool PuedeCancelar => string.Equals(Estado, EstadosCita.Pendiente, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Estado, EstadosCita.Aceptada, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Estado, EstadosCita.EmpleadoAsignado, StringComparison.OrdinalIgnoreCase);
+
+        public Command TomarTrabajoCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command ConfirmarCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command EnCaminoCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command RecogidoCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command IniciarServicioCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command FinalizarCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command EntregarCommand { get; set; } = new(async () => await Task.CompletedTask);
+        public Command CancelarCommand { get; set; } = new(async () => await Task.CompletedTask);
+        // Observaciones removed
+
+        public void RefrescarEstadoVisual()
+        {
+            OnPropertyChanged(nameof(Estado));
+            OnPropertyChanged(nameof(EstadoTexto));
+            OnPropertyChanged(nameof(EstadoColor));
+            OnPropertyChanged(nameof(EstadoBackgroundColor));
+            OnPropertyChanged(nameof(EsDomicilio));
+            OnPropertyChanged(nameof(ModalidadTexto));
+            OnPropertyChanged(nameof(PuedeTomarTrabajo));
+            OnPropertyChanged(nameof(PuedeConfirmar));
+            OnPropertyChanged(nameof(PuedeMarcarEnCamino));
+            OnPropertyChanged(nameof(PuedeMarcarRecogido));
+            OnPropertyChanged(nameof(PuedeIniciar));
+            OnPropertyChanged(nameof(PuedeFinalizar));
+            OnPropertyChanged(nameof(PuedeEntregar));
+            OnPropertyChanged(nameof(PuedeCancelar));
+
+            TomarTrabajoCommand.ChangeCanExecute();
+            ConfirmarCommand.ChangeCanExecute();
+            EnCaminoCommand.ChangeCanExecute();
+            RecogidoCommand.ChangeCanExecute();
+            IniciarServicioCommand.ChangeCanExecute();
+            FinalizarCommand.ChangeCanExecute();
+            EntregarCommand.ChangeCanExecute();
+            CancelarCommand.ChangeCanExecute();
+        }
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

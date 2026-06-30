@@ -1,0 +1,356 @@
+﻿using System.Text.Json;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Constants;
+using AutoLavadoApp.Services.Core;
+
+namespace AutoLavadoApp.Services.Data;
+
+public class MensajeInternoService : FirestoreBaseService
+{
+    private const int MaxMensajeLength = 500;
+
+    public MensajeInternoService(HttpClient httpClient) : base(httpClient)
+    {
+    }
+
+    public static string BuildChatId(string empleadoUid) => $"admin_{(empleadoUid ?? string.Empty).Trim()}";
+
+    public async Task<bool> EnviarMensajeAsync(MensajeInterno mensaje, string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(idToken) || string.IsNullOrWhiteSpace(mensaje.RemitenteUid) || string.IsNullOrWhiteSpace(mensaje.DestinatarioUid))
+        {
+            return false;
+        }
+
+        var texto = mensaje.Mensaje?.Trim() ?? string.Empty;
+        if (texto.Length < 3 || texto.Length > MaxMensajeLength)
+        {
+            return false;
+        }
+
+        var id = string.IsNullOrWhiteSpace(mensaje.Id) ? Guid.NewGuid().ToString("N") : mensaje.Id;
+        var fechaUtc = mensaje.Fecha == default ? DateTime.UtcNow : mensaje.Fecha.ToUniversalTime();
+        var chatId = string.IsNullOrWhiteSpace(mensaje.ChatId)
+            ? ResolveChatId(mensaje.RemitenteUid, mensaje.DestinatarioUid)
+            : mensaje.ChatId.Trim();
+
+        var body = new
+        {
+            fields = new Dictionary<string, object>
+            {
+                ["id"] = new { stringValue = id },
+                ["chatId"] = new { stringValue = chatId },
+                ["remitenteUid"] = new { stringValue = mensaje.RemitenteUid },
+                ["remitenteNombre"] = new { stringValue = mensaje.RemitenteNombre ?? string.Empty },
+                ["destinatarioUid"] = new { stringValue = mensaje.DestinatarioUid },
+                ["destinatarioNombre"] = new { stringValue = mensaje.DestinatarioNombre ?? string.Empty },
+                ["mensaje"] = new { stringValue = texto },
+                ["fecha"] = new { timestampValue = fechaUtc.ToString("O") },
+                ["leido"] = new { booleanValue = mensaje.Leido }
+            }
+        };
+
+        return await CrearDocumentoAsync(FirestoreCollections.Mensajes, body, id, idToken);
+    }
+
+    public async Task<bool> EnviarMensajeAsync(string remitenteUid, string remitenteNombre, string destinatarioUid, string destinatarioNombre, string mensaje, string idToken)
+    {
+        return await EnviarMensajeAsync(new MensajeInterno
+        {
+            ChatId = ResolveChatId(remitenteUid, destinatarioUid),
+            RemitenteUid = remitenteUid,
+            RemitenteNombre = remitenteNombre,
+            DestinatarioUid = destinatarioUid,
+            DestinatarioNombre = destinatarioNombre,
+            Mensaje = mensaje,
+            Fecha = DateTime.UtcNow,
+            Leido = false
+        }, idToken);
+    }
+
+    public async Task<List<MensajeInterno>> ObtenerMensajesPorUsuarioAsync(string uid, string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(idToken))
+        {
+            return new List<MensajeInterno>();
+        }
+
+        var doc = await ObtenerColeccionAsync(FirestoreCollections.Mensajes, idToken);
+        if (doc is null || !doc.Value.TryGetProperty("documents", out var documents) || documents.ValueKind != JsonValueKind.Array)
+        {
+            return new List<MensajeInterno>();
+        }
+
+        var mensajes = new List<MensajeInterno>();
+        foreach (var d in documents.EnumerateArray())
+        {
+            if (!d.TryGetProperty("fields", out var f))
+            {
+                continue;
+            }
+
+            var remitente = ReadString(f, "remitenteUid") ?? string.Empty;
+            var destinatario = ReadString(f, "destinatarioUid") ?? string.Empty;
+            if (!string.Equals(remitente, uid, StringComparison.Ordinal) && !string.Equals(destinatario, uid, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            mensajes.Add(new MensajeInterno
+            {
+                Id = ReadString(f, "id") ?? string.Empty,
+                ChatId = ReadString(f, "chatId") ?? ResolveChatId(remitente, destinatario),
+                RemitenteUid = remitente,
+                RemitenteNombre = ReadString(f, "remitenteNombre") ?? string.Empty,
+                DestinatarioUid = destinatario,
+                DestinatarioNombre = ReadString(f, "destinatarioNombre") ?? string.Empty,
+                Mensaje = ReadString(f, "mensaje") ?? string.Empty,
+                Fecha = ReadTimestamp(f, "fecha") ?? DateTime.UtcNow,
+                Leido = ReadBool(f, "leido") ?? false
+            });
+        }
+
+        return mensajes
+            .OrderByDescending(m => m.Fecha)
+            .ToList();
+    }
+
+    public async Task<List<MensajeInterno>> ObtenerMensajesAsync(string chatId, string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(chatId) || string.IsNullOrWhiteSpace(idToken))
+        {
+            return new List<MensajeInterno>();
+        }
+
+        var doc = await ObtenerColeccionAsync(FirestoreCollections.Mensajes, idToken);
+        if (doc is null || !doc.Value.TryGetProperty("documents", out var documents) || documents.ValueKind != JsonValueKind.Array)
+        {
+            return new List<MensajeInterno>();
+        }
+
+        var mensajes = new List<MensajeInterno>();
+        foreach (var d in documents.EnumerateArray())
+        {
+            if (!d.TryGetProperty("fields", out var f))
+            {
+                continue;
+            }
+
+            var chatIdDocumento = ReadString(f, "chatId") ?? string.Empty;
+            if (!string.Equals(chatIdDocumento, chatId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var remitente = ReadString(f, "remitenteUid") ?? string.Empty;
+            var destinatario = ReadString(f, "destinatarioUid") ?? string.Empty;
+            mensajes.Add(new MensajeInterno
+            {
+                Id = ReadString(f, "id") ?? string.Empty,
+                ChatId = chatIdDocumento,
+                RemitenteUid = remitente,
+                RemitenteNombre = ReadString(f, "remitenteNombre") ?? string.Empty,
+                DestinatarioUid = destinatario,
+                DestinatarioNombre = ReadString(f, "destinatarioNombre") ?? string.Empty,
+                Mensaje = ReadString(f, "mensaje") ?? string.Empty,
+                Fecha = ReadTimestamp(f, "fecha") ?? DateTime.UtcNow,
+                Leido = ReadBool(f, "leido") ?? false
+            });
+        }
+
+        return mensajes
+            .OrderBy(m => m.Fecha)
+            .ToList();
+    }
+
+    public async Task<List<ConversacionAdminItem>> ObtenerConversacionesAdminAsync(string adminUid, string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(adminUid) || string.IsNullOrWhiteSpace(idToken))
+        {
+            return new List<ConversacionAdminItem>();
+        }
+
+        var doc = await ObtenerColeccionAsync(FirestoreCollections.Mensajes, idToken);
+        if (doc is null || !doc.Value.TryGetProperty("documents", out var documents) || documents.ValueKind != JsonValueKind.Array)
+        {
+            return new List<ConversacionAdminItem>();
+        }
+
+        var conversaciones = new Dictionary<string, ConversacionAdminItem>(StringComparer.Ordinal);
+
+        foreach (var d in documents.EnumerateArray())
+        {
+            if (!d.TryGetProperty("fields", out var f))
+            {
+                continue;
+            }
+
+            var remitente = ReadString(f, "remitenteUid") ?? string.Empty;
+            var destinatario = ReadString(f, "destinatarioUid") ?? string.Empty;
+            var chatId = ReadString(f, "chatId") ?? ResolveChatId(remitente, destinatario);
+            var fecha = ReadTimestamp(f, "fecha") ?? DateTime.UtcNow;
+            var mensaje = ReadString(f, "mensaje") ?? string.Empty;
+            var leido = ReadBool(f, "leido") ?? false;
+
+            var empleadoUid = ResolveEmpleadoUid(chatId, remitente, destinatario, adminUid);
+            if (string.IsNullOrWhiteSpace(empleadoUid))
+            {
+                continue;
+            }
+
+            var empleadoNombre = string.Equals(remitente, empleadoUid, StringComparison.Ordinal)
+                ? (ReadString(f, "remitenteNombre") ?? "Empleado")
+                : (ReadString(f, "destinatarioNombre") ?? "Empleado");
+
+            if (!conversaciones.TryGetValue(chatId, out var conversacion))
+            {
+                conversacion = new ConversacionAdminItem
+                {
+                    ChatId = chatId,
+                    EmpleadoUid = empleadoUid,
+                    EmpleadoNombre = empleadoNombre,
+                    UltimoMensaje = mensaje,
+                    FechaUltimoMensaje = fecha,
+                    TieneNoLeidos = string.Equals(destinatario, adminUid, StringComparison.Ordinal) && !leido
+                };
+
+                conversaciones[chatId] = conversacion;
+            }
+            else
+            {
+                if (fecha > conversacion.FechaUltimoMensaje)
+                {
+                    conversacion.UltimoMensaje = mensaje;
+                    conversacion.FechaUltimoMensaje = fecha;
+                    conversacion.EmpleadoNombre = string.IsNullOrWhiteSpace(conversacion.EmpleadoNombre)
+                        ? empleadoNombre
+                        : conversacion.EmpleadoNombre;
+                }
+
+                if (string.Equals(destinatario, adminUid, StringComparison.Ordinal) && !leido)
+                {
+                    conversacion.TieneNoLeidos = true;
+                }
+            }
+        }
+
+        return conversaciones.Values
+            .OrderByDescending(c => c.FechaUltimoMensaje)
+            .ToList();
+    }
+
+    public async Task<bool> MarcarLeidoAsync(string mensajeId, bool leido, string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(mensajeId) || string.IsNullOrWhiteSpace(idToken))
+        {
+            return false;
+        }
+
+        var body = new
+        {
+            fields = new Dictionary<string, object>
+            {
+                ["leido"] = new { booleanValue = leido }
+            }
+        };
+
+        return await CrearDocumentoAsync(FirestoreCollections.Mensajes, body, mensajeId, idToken);
+    }
+
+    public async Task<int> MarcarComoLeidoAsync(string chatId, string destinatarioUid, string idToken)
+    {
+        if (string.IsNullOrWhiteSpace(chatId) || string.IsNullOrWhiteSpace(destinatarioUid) || string.IsNullOrWhiteSpace(idToken))
+        {
+            return 0;
+        }
+
+        var mensajes = await ObtenerMensajesAsync(chatId, idToken);
+        var pendientes = mensajes
+            .Where(m => string.Equals(m.DestinatarioUid, destinatarioUid, StringComparison.Ordinal) && !m.Leido)
+            .ToList();
+
+        var total = 0;
+        foreach (var mensaje in pendientes)
+        {
+            var actualizado = await MarcarLeidoAsync(mensaje.Id, true, idToken);
+            if (actualizado)
+            {
+                total++;
+            }
+        }
+
+        return total;
+    }
+
+    private static string? ReadString(JsonElement fields, string key)
+    {
+        if (!fields.TryGetProperty(key, out var v)) return null;
+        if (v.TryGetProperty("stringValue", out var s)) return s.GetString();
+        return null;
+    }
+
+    private static bool? ReadBool(JsonElement fields, string key)
+    {
+        if (!fields.TryGetProperty(key, out var v)) return null;
+        if (v.TryGetProperty("booleanValue", out var b)) return b.GetBoolean();
+        return null;
+    }
+
+    private static DateTime? ReadTimestamp(JsonElement fields, string key)
+    {
+        if (!fields.TryGetProperty(key, out var v)) return null;
+        if (!v.TryGetProperty("timestampValue", out var ts)) return null;
+        if (!DateTime.TryParse(ts.GetString(), out var parsed)) return null;
+        return parsed;
+    }
+
+    private static string ResolveChatId(string remitenteUid, string destinatarioUid)
+    {
+        if (IsAdminUid(remitenteUid) && !string.IsNullOrWhiteSpace(destinatarioUid))
+        {
+            return BuildChatId(destinatarioUid);
+        }
+
+        if (IsAdminUid(destinatarioUid) && !string.IsNullOrWhiteSpace(remitenteUid))
+        {
+            return BuildChatId(remitenteUid);
+        }
+
+        return BuildChatId(remitenteUid);
+    }
+
+    private static string ResolveEmpleadoUid(string chatId, string remitenteUid, string destinatarioUid, string adminUid)
+    {
+        if (!string.IsNullOrWhiteSpace(chatId) && chatId.StartsWith("admin_", StringComparison.Ordinal))
+        {
+            return chatId.Substring("admin_".Length);
+        }
+
+        if (string.Equals(remitenteUid, adminUid, StringComparison.Ordinal))
+        {
+            return destinatarioUid;
+        }
+
+        return remitenteUid;
+    }
+
+    private static bool IsAdminUid(string uid)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+        {
+            return false;
+        }
+
+        return uid.StartsWith("admin", StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class ConversacionAdminItem
+{
+    public string ChatId { get; set; } = string.Empty;
+    public string EmpleadoUid { get; set; } = string.Empty;
+    public string EmpleadoNombre { get; set; } = string.Empty;
+    public string UltimoMensaje { get; set; } = string.Empty;
+    public DateTime FechaUltimoMensaje { get; set; }
+    public bool TieneNoLeidos { get; set; }
+}

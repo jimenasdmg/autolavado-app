@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.AdminHomePage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <VerticalStackLayout Padding="20,24" Spacing="14">
+        <Border BackgroundColor="#0B1F4D"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 18"
+                Padding="16,14">
+            <Border.Shadow>
+                <Shadow Brush="#22000000" Offset="0,5" Radius="12" />
+            </Border.Shadow>
+            <Label Text="Panel administrador"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   TextColor="White" />
+        </Border>
+
+        <Border BackgroundColor="White"
+                Stroke="#E7ECF4"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 16"
+                Padding="16">
+            <Border.Shadow>
+                <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+            </Border.Shadow>
+            <Label Text="Bienvenido al panel administrativo BRIZZO."
+                   FontSize="15"
+                   TextColor="#334155" />
+        </Border>
+    </VerticalStackLayout>
+</ContentPage>

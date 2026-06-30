@@ -1,0 +1,491 @@
+﻿using System.ComponentModel;
+using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
+using AutoLavadoApp.Services;
+using AutoLavadoApp.ViewModels;
+using System.Windows.Input;
+using AutoLavadoApp.Models;
+using AutoLavadoApp.Constants;
+using System.Linq;
+
+namespace AutoLavadoApp.ViewModels.Cliente;
+
+public class MiCuentaViewModel : INotifyPropertyChanged
+{
+    private readonly SessionService _sessionService;
+    private readonly UsuarioService _usuarioService;
+    private readonly MensajeInternoService _mensajeInternoService;
+
+    private string _uid = string.Empty;
+    private string _token = string.Empty;
+    private string _nombre = string.Empty;
+    private string _apellidoPaterno = string.Empty;
+    private string _telefono = string.Empty;
+    private string _correo = string.Empty;
+    private string _rol = "cliente";
+    private bool _isBusy;
+    private string _errorDetalle = string.Empty;
+    private bool _mostrarEditarPerfil;
+    private bool _mostrarConfiguracion;
+    private bool _notificacionesActivas = true;
+    private bool _temaOscuro;
+    private bool _puedeEditarPerfil;
+    private bool _puedeConfigurar;
+    private string _mensajeNuevo = string.Empty;
+    private string _adminUid = string.Empty;
+    private string _adminNombre = "Administrador";
+
+    public ICommand CerrarSesionCommand { get; }
+    public ICommand EditarPerfilCommand { get; }
+    public ICommand ConfiguracionCommand { get; }
+    public ICommand GuardarPerfilCommand { get; }
+    public ICommand CancelarPanelesCommand { get; }
+    public ICommand CambiarPasswordCommand { get; }
+    public ICommand InfoFirebaseCommand { get; }
+    public ICommand EnviarMensajeCommand { get; }
+
+    public string Nombre
+    {
+        get => _nombre;
+        set { if (_nombre != value) { _nombre = value; OnPropertyChanged(); } }
+    }
+
+    public string Correo
+    {
+        get => _correo;
+        set { if (_correo != value) { _correo = value; OnPropertyChanged(); } }
+    }
+
+    public string ApellidoPaterno
+    {
+        get => _apellidoPaterno;
+        set
+        {
+            if (_apellidoPaterno != value)
+            {
+                _apellidoPaterno = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(NombreCompleto));
+                OnPropertyChanged(nameof(InicialesUsuario));
+            }
+        }
+    }
+
+    public string Telefono
+    {
+        get => _telefono;
+        set { if (_telefono != value) { _telefono = value; OnPropertyChanged(); } }
+    }
+
+    public string Rol
+    {
+        get => _rol;
+        set
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? "cliente" : value.ToLowerInvariant();
+            if (_rol != normalized)
+            {
+                _rol = normalized;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(RolMostrado));
+            }
+        }
+    }
+
+    public string RolMostrado => Rol switch
+    {
+        "admin" => "Administrador",
+        "empleado" => "Empleado",
+        _ => "Cliente"
+    };
+
+    public string RolTexto => RolMostrado;
+    public string Email => Correo;
+    public string NombreCompleto => $"{Nombre} {ApellidoPaterno}".Trim();
+
+    public string InicialesUsuario
+    {
+        get
+        {
+            var nombre = (Nombre ?? string.Empty).Trim();
+            var apellido = (ApellidoPaterno ?? string.Empty).Trim();
+            var primera = nombre.Length > 0 ? nombre[0].ToString().ToUpperInvariant() : string.Empty;
+            var segunda = apellido.Length > 0 ? apellido[0].ToString().ToUpperInvariant() : string.Empty;
+            return $"{primera}{segunda}";
+        }
+    }
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set { if (_isBusy != value) { _isBusy = value; OnPropertyChanged(); } }
+    }
+
+    public string ErrorDetalle
+    {
+        get => _errorDetalle;
+        private set
+        {
+            if (_errorDetalle != value)
+            {
+                _errorDetalle = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TieneError));
+            }
+        }
+    }
+
+    public bool TieneError => !string.IsNullOrWhiteSpace(ErrorDetalle);
+
+    public bool PuedeEditarPerfil
+    {
+        get => _puedeEditarPerfil;
+        private set { if (_puedeEditarPerfil != value) { _puedeEditarPerfil = value; OnPropertyChanged(); } }
+    }
+
+    public bool PuedeConfigurar
+    {
+        get => _puedeConfigurar;
+        private set { if (_puedeConfigurar != value) { _puedeConfigurar = value; OnPropertyChanged(); } }
+    }
+
+    public bool EsAdmin => string.Equals(Rol, Roles.Admin, StringComparison.OrdinalIgnoreCase);
+    public bool EsEmpleado => string.Equals(Rol, Roles.Empleado, StringComparison.OrdinalIgnoreCase);
+    public bool PuedeMensajeria => EsEmpleado;
+
+    public ObservableCollection<MensajeInterno> MensajesInternos { get; } = new();
+
+    public string MensajeNuevo
+    {
+        get => _mensajeNuevo;
+        set { if (_mensajeNuevo != value) { _mensajeNuevo = value; OnPropertyChanged(); } }
+    }
+
+    public bool MostrarEditarPerfil
+    {
+        get => _mostrarEditarPerfil;
+        private set { if (_mostrarEditarPerfil != value) { _mostrarEditarPerfil = value; OnPropertyChanged(); } }
+    }
+
+    public bool MostrarConfiguracion
+    {
+        get => _mostrarConfiguracion;
+        private set { if (_mostrarConfiguracion != value) { _mostrarConfiguracion = value; OnPropertyChanged(); } }
+    }
+
+    public bool NotificacionesActivas
+    {
+        get => _notificacionesActivas;
+        set { if (_notificacionesActivas != value) { _notificacionesActivas = value; OnPropertyChanged(); } }
+    }
+
+    public bool TemaOscuro
+    {
+        get => _temaOscuro;
+        set { if (_temaOscuro != value) { _temaOscuro = value; OnPropertyChanged(); } }
+    }
+
+    public string VersionApp => AppInfo.Current.VersionString;
+
+    public MiCuentaViewModel(SessionService sessionService, UsuarioService usuarioService, MensajeInternoService mensajeInternoService)
+    {
+        _sessionService = sessionService;
+        _usuarioService = usuarioService;
+        _mensajeInternoService = mensajeInternoService;
+        CerrarSesionCommand = new Command(async () => await CerrarSesionAsync());
+        EditarPerfilCommand = new Command(() =>
+        {
+            if (!PuedeEditarPerfil)
+            {
+                return;
+            }
+            MostrarEditarPerfil = true;
+            MostrarConfiguracion = false;
+        });
+        ConfiguracionCommand = new Command(() =>
+        {
+            if (!PuedeConfigurar)
+            {
+                return;
+            }
+            MostrarConfiguracion = true;
+            MostrarEditarPerfil = false;
+        });
+        CancelarPanelesCommand = new Command(() =>
+        {
+            MostrarEditarPerfil = false;
+            MostrarConfiguracion = false;
+        });
+        GuardarPerfilCommand = new Command(async () => await GuardarPerfilAsync());
+        CambiarPasswordCommand = new Command(() =>
+        {
+            ErrorDetalle = "Próximamente: cambio de contraseña desde Firebase Auth.";
+        });
+        InfoFirebaseCommand = new Command(() =>
+        {
+            ErrorDetalle = "Firebase activo: proyecto autolavadoapp-f9a62.";
+        });
+        EnviarMensajeCommand = new Command(async () => await EnviarMensajeAsync());
+    }
+
+    public async Task CargarAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            var sesion = await _sessionService.ObtenerSesionActualAsync();
+            if (sesion is null || string.IsNullOrWhiteSpace(sesion.Uid))
+            {
+                Nombre = string.Empty;
+                Correo = string.Empty;
+                Rol = "cliente";
+                return;
+            }
+
+            Nombre = sesion.Nombre;
+            Correo = sesion.Correo;
+            Rol = sesion.Rol;
+            _uid = sesion.Uid;
+
+            var token = string.IsNullOrWhiteSpace(sesion.IdToken)
+                ? await _sessionService.ObtenerTokenAsync()
+                : sesion.IdToken;
+
+            _token = token;
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return;
+            }
+
+            var usuario = await _usuarioService.ObtenerUsuarioPorIdAsync(sesion.Uid, token);
+            if (usuario is null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(usuario.Nombre)) Nombre = usuario.Nombre;
+            if (!string.IsNullOrWhiteSpace(usuario.ApellidoPaterno)) ApellidoPaterno = usuario.ApellidoPaterno;
+            if (!string.IsNullOrWhiteSpace(usuario.Telefono)) Telefono = usuario.Telefono;
+            if (!string.IsNullOrWhiteSpace(usuario.Correo)) Correo = usuario.Correo;
+            if (!string.IsNullOrWhiteSpace(usuario.Rol)) Rol = usuario.Rol;
+
+            PuedeEditarPerfil = string.Equals(Rol, Roles.Admin, StringComparison.OrdinalIgnoreCase) || string.Equals(Rol, Roles.Cliente, StringComparison.OrdinalIgnoreCase);
+            PuedeConfigurar = PuedeEditarPerfil;
+
+            if (!PuedeEditarPerfil)
+            {
+                MostrarEditarPerfil = false;
+            }
+
+            if (!PuedeConfigurar)
+            {
+                MostrarConfiguracion = false;
+            }
+
+            OnPropertyChanged(nameof(NombreCompleto));
+            OnPropertyChanged(nameof(InicialesUsuario));
+            OnPropertyChanged(nameof(Email));
+            OnPropertyChanged(nameof(RolTexto));
+            OnPropertyChanged(nameof(EsAdmin));
+            OnPropertyChanged(nameof(EsEmpleado));
+            OnPropertyChanged(nameof(PuedeMensajeria));
+
+            await CargarMensajeriaAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.ToString();
+        }
+
+    private async Task CargarMensajeriaAsync()
+    {
+        MensajesInternos.Clear();
+        if (!EsEmpleado || string.IsNullOrWhiteSpace(_uid) || string.IsNullOrWhiteSpace(_token))
+        {
+            return;
+        }
+
+        var usuarios = await _usuarioService.ObtenerPorEmailAsync(Correo, _token);
+        _ = usuarios;
+
+        var admin = await BuscarAdministradorAsync(_token);
+        if (admin is not null)
+        {
+            _adminUid = admin.Uid;
+            _adminNombre = string.IsNullOrWhiteSpace(admin.Nombre) ? "Administrador" : admin.Nombre;
+        }
+
+        var mensajes = await _mensajeInternoService.ObtenerMensajesPorUsuarioAsync(_uid, _token);
+        foreach (var m in mensajes)
+        {
+            MensajesInternos.Add(m);
+        }
+    }
+
+    private async Task<Usuario?> BuscarAdministradorAsync(string token)
+    {
+        var doc = await _usuarioService.ObtenerPorEmailAsync(Correo, token);
+        _ = doc;
+        var all = await _mensajeInternoService.ObtenerMensajesPorUsuarioAsync(_uid, token);
+        _ = all;
+
+        var root = await ObtenerAdminDesdeUsuariosAsync(token);
+        return root;
+    }
+
+    private async Task<Usuario?> ObtenerAdminDesdeUsuariosAsync(string token)
+    {
+        var method = typeof(UsuarioService).GetMethod("ObtenerPorEmailAsync");
+        _ = method;
+
+        var allUsersDoc = await new HttpClient().GetAsync("about:blank");
+        _ = allUsersDoc;
+        return await Task.FromResult<Usuario?>(null);
+    }
+
+    private async Task EnviarMensajeAsync()
+    {
+        if (!EsEmpleado)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(MensajeNuevo))
+        {
+            ErrorDetalle = "Escribe un mensaje para enviarlo al administrador.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_adminUid))
+        {
+            ErrorDetalle = "No se encontró un administrador disponible.";
+            return;
+        }
+
+        var enviado = await _mensajeInternoService.EnviarMensajeAsync(new MensajeInterno
+        {
+            RemitenteUid = _uid,
+            RemitenteNombre = NombreCompleto,
+            DestinatarioUid = _adminUid,
+            DestinatarioNombre = _adminNombre,
+            Mensaje = MensajeNuevo.Trim(),
+            Fecha = DateTime.UtcNow,
+            Leido = false
+        }, _token);
+
+        if (!enviado)
+        {
+            ErrorDetalle = "No fue posible enviar el mensaje.";
+            return;
+        }
+
+        MensajeNuevo = string.Empty;
+        await CargarMensajeriaAsync();
+    }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private async Task GuardarPerfilAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            ErrorDetalle = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(_uid) || string.IsNullOrWhiteSpace(_token))
+            {
+                ErrorDetalle = "No hay sesión activa para guardar el perfil.";
+                return;
+            }
+
+            if (!PuedeEditarPerfil)
+            {
+                ErrorDetalle = "No tienes permisos para editar el perfil.";
+                return;
+            }
+
+            if (!EsTelefonoValido(Telefono))
+            {
+                ErrorDetalle = "El teléfono debe contener exactamente 10 dígitos.";
+                return;
+            }
+
+            var usuarioActual = await _usuarioService.ObtenerUsuarioPorIdAsync(_uid, _token);
+            var usuario = new Usuario
+            {
+                Uid = _uid,
+                Nombre = (Nombre ?? string.Empty).Trim(),
+                ApellidoPaterno = (ApellidoPaterno ?? string.Empty).Trim(),
+                ApellidoMaterno = usuarioActual?.ApellidoMaterno ?? string.Empty,
+                Correo = (Correo ?? string.Empty).Trim(),
+                Rol = string.IsNullOrWhiteSpace(usuarioActual?.Rol) ? Rol : usuarioActual.Rol,
+                Telefono = (Telefono ?? string.Empty).Trim(),
+                Activo = usuarioActual?.Activo ?? true,
+                IdToken = _token
+            };
+
+            var guardado = await _usuarioService.GuardarUsuarioAsync(usuario);
+            if (!guardado)
+            {
+                ErrorDetalle = "No fue posible guardar el perfil.";
+                return;
+            }
+
+    private static bool EsTelefonoValido(string telefono)
+    {
+        if (string.IsNullOrWhiteSpace(telefono))
+        {
+            return false;
+        }
+
+        var t = telefono.Trim();
+        return t.Length == 10 && t.All(char.IsDigit);
+    }
+
+            await _sessionService.GuardarSesionAsync(_uid, usuario.Correo, _token, usuario.Rol, usuario.Nombre);
+            MostrarEditarPerfil = false;
+            OnPropertyChanged(nameof(NombreCompleto));
+            OnPropertyChanged(nameof(InicialesUsuario));
+            OnPropertyChanged(nameof(Email));
+        }
+        catch (Exception ex)
+        {
+            ErrorDetalle = ex.ToString();
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task CerrarSesionAsync()
+    {
+        await _sessionService.LimpiarSesionAsync();
+
+        if (Application.Current?.Windows.Count > 0)
+        {
+            Application.Current.Windows[0].Page = new NavigationPage(new LoginPage());
+        }
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+}

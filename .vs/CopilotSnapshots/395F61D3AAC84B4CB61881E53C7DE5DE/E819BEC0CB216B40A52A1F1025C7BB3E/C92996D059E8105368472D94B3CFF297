@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.EmpleadoMensajesPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16,20,16,16" RowSpacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Padding="0,8,0,0">
+            <Button WidthRequest="42"
+                    HeightRequest="42"
+                    CornerRadius="12"
+                    BackgroundColor="#0B1F4D"
+                    TextColor="White"
+                    FontFamily="FontAwesomeSolid"
+                    FontSize="16"
+                    Text="&#xF060;"
+                    Clicked="OnVolverClicked" />
+
+            <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
+                <Label Text="Mensajes"
+                       FontSize="22"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D" />
+                <Label Text="Administrador"
+                       FontSize="12"
+                       TextColor="#64748B" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <Border Grid.Row="1"
+                BackgroundColor="White"
+                Stroke="#E7ECF4"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 16"
+                Padding="10">
+            <CollectionView x:Name="MensajesCollectionView"
+                            ItemsSource="{Binding Mensajes}"
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="{Binding Fondo}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 14"
+                                Padding="10"
+                                Margin="0,0,0,8"
+                                HorizontalOptions="{Binding Alineacion}">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Mensaje}" TextColor="{Binding ColorTexto}" FontSize="13" />
+                                <Label Text="{Binding Fecha, StringFormat='{0:dd/MM HH:mm}'}"
+                                       TextColor="{Binding ColorTexto}"
+                                       Opacity="0.8"
+                                       FontSize="10" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding MostrarEntrada}">
+            <Entry Placeholder="Escribir mensaje..."
+                   Text="{Binding MensajeNuevo}"
+                   MaxLength="500" />
+
+            <Button Grid.Column="1"
+                    Text="Enviar"
+                    HeightRequest="42"
+                    CornerRadius="10"
+                    Padding="14,0"
+                    BackgroundColor="#2563EB"
+                    TextColor="White"
+                    Command="{Binding EnviarMensajeCommand}" />
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,55 @@
+﻿using AutoLavadoApp.ViewModels;
+using AutoLavadoApp.ViewModels.Admin;
+
+namespace AutoLavadoApp;
+
+public partial class AdminEmpleadosPage : ContentPage
+{
+    private readonly AdminViewModel _viewModel;
+
+    public AdminEmpleadosPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<AdminViewModel>()
+            ?? throw new InvalidOperationException("No se pudo resolver AdminViewModel desde DI.");
+
+        BindingContext = _viewModel;
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        await _viewModel.CargarDashboardAsync();
+    }
+
+    private async void OnAgregarEmpleadoClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new CrearEmpleadoPage());
+    }
+
+    private async void OnCambiarRolEmpleadoClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.CommandParameter is not EmpleadoAdminItem empleado)
+        {
+            return;
+        }
+
+        await _viewModel.CambiarRolEmpleadoAsync(empleado);
+    }
+
+    private async void OnCambiarEstadoEmpleadoClicked(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.CommandParameter is not EmpleadoAdminItem empleado)
+        {
+            return;
+        }
+
+        await _viewModel.CambiarEstadoEmpleadoAsync(empleado);
+    }
+
+    private async void OnAbrirMensajesClicked(object? sender, EventArgs e)
+    {
+        await Navigation.PushAsync(new AdminMensajesPage());
+    }
+}

@@ -1,0 +1,50 @@
+﻿using AutoLavadoApp.ViewModels.Empleado;
+using System.Diagnostics;
+
+namespace AutoLavadoApp;
+
+public partial class EmpleadoMensajesPage : ContentPage
+{
+    private readonly EmpleadoMensajesViewModel _viewModel;
+
+    public EmpleadoMensajesPage()
+    {
+        InitializeComponent();
+
+        _viewModel = IPlatformApplication.Current?.Services.GetService<EmpleadoMensajesViewModel>()
+            ?? throw new InvalidOperationException("EmpleadoMensajesViewModel no está registrado en DI.");
+
+        _viewModel.MostrarAlertaAsync = async (titulo, mensaje, cancelar) =>
+        {
+            await DisplayAlert(titulo, mensaje, cancelar);
+            return true;
+        };
+
+        BindingContext = _viewModel;
+    }
+
+    private async void OnEnviarClicked(object sender, EventArgs e)
+    {
+        if (BindingContext is not EmpleadoMensajesViewModel vm) return;
+        var ok = await vm.EnviarMensajeAsync();
+        Debug.WriteLine($"[MENSAJES][EMPLEADO][UI][SEND] ok={ok}");
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        if (BindingContext is EmpleadoMensajesViewModel vm)
+        {
+            await vm.RefrescarMensajesAsync();
+        }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        if (BindingContext is EmpleadoMensajesViewModel vm)
+        {
+            vm.DetenerPolling();
+        }
+    }
+}

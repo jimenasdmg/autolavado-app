@@ -1,0 +1,143 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoLavadoApp.MisVehiculosPage"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="Auto,*">
+        <VerticalStackLayout Padding="20,24,20,10" Spacing="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <Button Text="←"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="White"
+                        TextColor="#0B1F4D"
+                        Clicked="OnVolverClicked" />
+                <Label Grid.Column="1"
+                       Text="Mis vehículos"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="#0B1F4D"
+                       VerticalTextAlignment="Center" />
+                <Button Grid.Column="2"
+                        Text="＋"
+                        WidthRequest="38"
+                        HeightRequest="38"
+                        FontSize="20"
+                        CornerRadius="19"
+                        BackgroundColor="#3B82F6"
+                        TextColor="White"
+                        Clicked="OnAgregarVehiculoClicked" />
+            </Grid>
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1" Padding="20,0,20,20">
+            <CollectionView ItemsSource="{Binding Vehiculos}"
+                            IsVisible="{Binding HasVehiculos}"
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border BackgroundColor="White"
+                                Stroke="#E7ECF4"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16"
+                                Padding="14"
+                                Margin="0,0,0,12">
+                            <Border.Shadow>
+                                <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                            </Border.Shadow>
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="{Binding NombreCompleto}"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="#0B1F4D" />
+
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+                                    <Label Text="&#xF1B9;" FontFamily="FontAwesomeSolid" FontSize="12" VerticalTextAlignment="Center" TextColor="#3B82F6" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding Tipo}"
+                                           FontSize="14"
+                                           TextColor="#334155" />
+
+                                    <Label Grid.Row="1" Text="&#xF53F;" FontFamily="FontAwesomeSolid" FontSize="12" VerticalTextAlignment="Center" TextColor="#3B82F6" />
+                                    <Label Grid.Row="1" Grid.Column="1"
+                                           Text="{Binding Color}"
+                                           FontSize="14"
+                                           TextColor="#334155" />
+
+                                    <Label Grid.Row="2" Text="&#xF02A;" FontFamily="FontAwesomeSolid" FontSize="12" VerticalTextAlignment="Center" TextColor="#3B82F6" />
+                                    <Label Grid.Row="2" Grid.Column="1"
+                                           Text="{Binding Placas}"
+                                           FontSize="14"
+                                           TextColor="#334155" />
+                                </Grid>
+
+                                <Button Text="Eliminar"
+                                        HeightRequest="40"
+                                        CornerRadius="10"
+                                        BackgroundColor="#FEE2E2"
+                                        TextColor="#B91C1C"
+                                        FontAttributes="Bold"
+                                        CommandParameter="{Binding .}"
+                                        Clicked="OnEliminarVehiculoClicked" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <VerticalStackLayout IsVisible="{Binding HasNoVehiculos}"
+                                 VerticalOptions="Center"
+                                 HorizontalOptions="Center"
+                                 Spacing="10">
+                <Border BackgroundColor="White"
+                        Stroke="#E7ECF4"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 16"
+                        Padding="20"
+                        WidthRequest="280">
+                    <Border.Shadow>
+                        <Shadow Brush="#16000000" Offset="0,3" Radius="10" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="&#xF1B9;"
+                               FontFamily="FontAwesomeSolid"
+                               FontSize="40"
+                               TextColor="#3B82F6"
+                               HorizontalTextAlignment="Center" />
+                        <Label Text="Sin vehículos"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="#0B1F4D"
+                               HorizontalTextAlignment="Center" />
+                        <Label Text="{Binding MensajeVacio}"
+                               FontSize="14"
+                               TextColor="#64748B"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <Grid IsVisible="{Binding IsBusy}"
+                  BackgroundColor="#80F5F7FB"
+                  InputTransparent="False">
+                <VerticalStackLayout VerticalOptions="Center"
+                                     HorizontalOptions="Center"
+                                     Spacing="10">
+                    <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                       Color="#3B82F6"
+                                       WidthRequest="42"
+                                       HeightRequest="42" />
+                    <Label Text="Cargando vehículos..."
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="#0B1F4D" />
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+    </Grid>
+
+</ContentPage>
